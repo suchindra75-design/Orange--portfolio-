@@ -382,6 +382,19 @@ body {
   .sticker-cut {
     filter: drop-shadow(7px 0 0 var(--color-cream)) drop-shadow(-7px 0 0 var(--color-cream)) drop-shadow(0 -7px 0 var(--color-cream)) drop-shadow(0 7px 0 var(--color-cream));
   }
+  /* The hero character's card: a printed photo sticker (cream edge, ink line, hard ink shadow).
+     The character's own red backdrop fills it edge to edge, so the frames never show a seam. */
+  .hero-card {
+    border: clamp(7px, 0.75vw, 11px) solid var(--color-cream);
+    border-radius: 34px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 2px var(--color-ink),
+      12px 12px 0 2px var(--color-ink);
+  }
+  .hero-card .hero-character {
+    border-radius: 24px;
+  }
 }
 @keyframes caret-blink {
   0%,

@@ -1,6 +1,6 @@
 # DESIGN.md (v7): BOLD COLOUR, the contract for every page and every agent
 
-**Identity:** loud, warm and hand-made. An orange page, his name enormous in cream, his real photograph cut out like a sticker, and the work as chunky cards you want to pick up.
+**Identity:** loud, warm and hand-made. An orange page, his name enormous in cream, his own cartoon character on a photo-sticker card turning to look at you, and the work as chunky cards you want to pick up.
 
 **The signature marks:**
 - **The giant name:** `.t-name` (Bricolage Grotesque 800, tight tracking) for names and titles. SUCHINDRA is always whole, never split.
@@ -9,6 +9,7 @@
 - **Pills:** `.pill-ink` for actions, `.nav-pill` in the nav (ink on light grounds, cream over dark ones).
 - **Marker:** `.hl`, an orange marker behind one word.
 - **Photo cut-out:** `.sticker-cut` (cream outline drawn around a transparent PNG).
+- **Hero card:** `.hero-card` (cream edge, 2px ink line, hard ink shadow), tilted -2°, sitting on the hero's bottom edge. It holds the character (below).
 - **JetBrains Mono:** small uppercase labels (`.t-label`).
 
 **Palette, Bold Colour:**
@@ -31,8 +32,14 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 - **Easter eggs:** in the jump palette ("with great power"), typing "thwip" anywhere, the 404 page, and the tiny spider in the footer panorama with faint corner webs.
 - **Never:** logos, masks, characters, comic halftones, red-and-blue colour blocking, webs as wallpaper, or permanent animation.
 
+**The hero character (owner's decision, 26 Nov 2026):**
+- The hero shows his own animated cartoon character, from the video he supplied (source kept privately in `art/character/character.mp4`). `home/HeroCharacter.tsx` plays it one real frame at a time on a canvas: the head turns toward the cursor, looks straight at you when the cursor is near his face, blinks (the video's own blink) and now and then glances up when idle. Phones: he turns toward your finger while you touch the hero. Reduced motion: the still centre frame.
+- Frames: `tools/character/extract.py` (private) cuts 64 direction frames + `center.webp` + 2 blink frames into `public/me/character/` and writes `src/content/character.ts` (angle and turn amount per frame). The frames are copied as they are, only cropped: **never** blend frames, invent poses, retouch the face, or move his head with CSS transforms. If the video changes, re-run the script.
+- The video covers the full circle except a thin gap between up and upper-left; the player uses the nearest real frame there.
+- Alt text says it is a cartoon, never a photograph.
+
 **The owner's photograph:**
-- **Hero:** natural colour, from `/me/hero.png`, with `.sticker-cut`.
+- **Hero (until 26 Nov 2026):** `/me/hero.png` with `.sticker-cut`, kept in the repo in case he wants it back.
 - **Footer:** an ink line-engraving print, from `/me/footer-ink.png`, with `.sticker-cut`.
 - **Never** generate or alter his face. His photos are waist-up: never invent a body.
 
@@ -90,7 +97,8 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 ## 5. Performance (target: Intel i7 + Radeon Pro 5300M; phones)
 
 - **Rendering:** nothing animates off screen. Gate every rAF and canvas loop with an IntersectionObserver.
-- **Canvas:** 2D canvases cap DPR at 1.5 and redraw only what changes.
+- **Canvas:** 2D canvases cap DPR at 1.5 and redraw only what changes. The hero character draws only when its frame changes and sleeps between blinks.
+- **Hero character frames:** the centre frame loads with the page (about 8 KB) and the two blink frames follow it. The 64 direction frames (about 490 KB) preload on idle only with a mouse; phones fetch them on the first touch of the hero; reduced motion fetches nothing but the centre frame.
 - **WebGL:** only through a `Stage` (`world/Stage.tsx` via `world/stages.tsx`), or on the home hero through `world/HeroStickers.tsx`. Both render on demand, stop off screen and dispose on unmount. At most one per page.
 - **No visible load:** a Stage shows its poster (`world/Poster.tsx`, a still render of the scene at its first camera position, desktop and phone WebP in `public/work/<slug>/`) while three.js loads, and the canvas fades in over it. If a scene changes, re-render its posters.
 - **Hero stickers 3D** load only after the intro, on idle, and only with a mouse, a screen ≥ 768px wide, motion allowed and no Save-Data. Phones never download three.js on the home page. That canvas allows DPR 2 (three small meshes, text must stay sharp).

@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { gsap, MOTION, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion } from "@/lib/hooks";
 import { scrollToTarget } from "@/lib/scroll";
 import { site } from "@/content/site";
+import { HeroCharacter } from "./HeroCharacter";
 
 const NAME = "SUCHINDRA";
 
@@ -29,9 +29,9 @@ function Sticker({ icon, children, className, rot }: { icon: keyof typeof ICONS;
 }
 
 /**
- * HOME HERO (bold colour): an orange page, the name set huge in cream, and the owner's real
- * photograph cut out like a sticker in front of it, with a few stickers saying what he builds.
- * The letters drop in, the photo pops up, the stickers slap on. Spider-sense: a brief tingle
+ * HOME HERO (bold colour): an orange page, the name set huge in cream, and the owner's own
+ * character on a photo-sticker card in front of it, turning to look at your cursor, with a few
+ * stickers saying what he builds. The letters drop in, the card pops up, the stickers slap on. Spider-sense: a brief tingle
  * beside his head when the cursor comes close.
  */
 /** The 3D stickers (world/HeroStickers.tsx): their own chunk, fetched only when asked for. */
@@ -91,9 +91,9 @@ export function Hero() {
     const onMove = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
       const r = wrap.getBoundingClientRect();
-      const cx = r.left + r.width * 0.505;
-      const cy = r.top + r.height * 0.25;
-      if (Math.hypot(e.clientX - cx, e.clientY - cy) < r.height * 0.18 && performance.now() - last > 3800) {
+      const cx = r.left + r.width * 0.5;
+      const cy = r.top + r.height * 0.34;
+      if (Math.hypot(e.clientX - cx, e.clientY - cy) < r.height * 0.2 && performance.now() - last > 3800) {
         last = performance.now();
         wrap.dataset.sense = "on";
         window.clearTimeout(off);
@@ -125,10 +125,12 @@ export function Hero() {
         ))}
       </h1>
 
-      {/* His photograph, cut out like a sticker */}
-      <div ref={fig} data-sense="off" className="absolute bottom-0 left-1/2 z-[3] aspect-[904/1431] h-[66svh] -translate-x-1/2 md:h-[80svh]">
-        <Image src="/me/hero.png" alt={`${site.name}, smiling`} fill priority sizes="(max-width: 768px) 70vw, 34vw" className="sticker-cut object-contain object-bottom" />
-        <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="sense-lines absolute left-1/2 top-[8%] h-[30%] w-[70%] -translate-x-1/2 overflow-visible">
+      {/* His character, on a photo-sticker card: it turns to look at your cursor (HeroCharacter) */}
+      <div ref={fig} data-sense="off" className="absolute bottom-[-5%] left-1/2 z-[3] aspect-[3/4] h-[min(60svh,118vw)] -translate-x-1/2 rotate-[-2deg] md:aspect-[4/5] md:h-[min(68svh,52vw)] md:portrait:aspect-[3/4] md:portrait:h-[min(60svh,70vw)]">
+        <div className="hero-card h-full w-full">
+          <HeroCharacter alt={`${site.name} as an animated cartoon character`} />
+        </div>
+        <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="sense-lines absolute left-1/2 top-[10%] h-[30%] w-[74%] -translate-x-1/2 overflow-visible">
           <g fill="none" stroke="var(--color-ink)" strokeLinecap="round">
             {[20, 38].map((y) => (
               <g key={y}>
@@ -141,20 +143,20 @@ export function Hero() {
       </div>
 
       {/* What he builds, as stickers */}
-      <Sticker icon="mic" rot={-8} className="left-[18%] top-[47%] max-md:left-[4%] max-md:top-[44%]">
+      <Sticker icon="mic" rot={-8} className="left-[18%] top-[47%] max-md:left-[4%] max-md:top-[37%]">
         AI assistants
       </Sticker>
-      <Sticker icon="bolt" rot={7} className="right-[19%] top-[40%] max-md:right-[4%] max-md:top-[37%]">
+      <Sticker icon="bolt" rot={7} className="right-[19%] top-[40%] max-md:right-[4%] max-md:top-[29%]">
         ESP32 + hardware
       </Sticker>
-      <Sticker icon="wave" rot={-4} className="right-[14%] top-[62%] max-md:right-[3%] max-md:top-[56%]">
+      <Sticker icon="wave" rot={-4} className="right-[14%] top-[62%] max-md:right-[3%] max-md:top-[45%]">
         EEG over Bluetooth
       </Sticker>
 
       {load3D && <HeroStickers hero={root} />}
 
       {/* The line */}
-      <div data-lead className="absolute bottom-[clamp(1.5rem,6svh,3.5rem)] left-[var(--gutter)] z-[5] max-w-[24rem] max-md:hidden">
+      <div data-lead className="absolute bottom-[clamp(1.5rem,6svh,3.5rem)] left-[var(--gutter)] z-[5] max-w-[21rem] max-xl:hidden">
         <p className="text-[clamp(1.3rem,1.9vw,1.75rem)] font-semibold leading-[1.18] tracking-[-0.02em]">Full stack dev who builds things that talk, sense and ship.</p>
         <p className="t-label mt-4">
           {site.location.split(",")[0]} · {site.current.company}
