@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# QA build folders
+/.next-qa*
+
+# Photo generation: personal reference photos and full-size generated originals stay local
+/art/references/
+/art/generated/
+/art/style/
+
+# Working material stays on this Mac, out of the public repo: planning and research notes,
+# design history, and the Gemini photo tool.
+/docs/
+/tools/
+/art/

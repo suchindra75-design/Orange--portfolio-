@@ -1,0 +1,91 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
+/**
+ * A 2D canvas loop that only runs while the canvas is on screen (DESIGN.md §5):
+ * IntersectionObserver-gated rAF, DPR capped at 1.5, throttled to `fps`, cleaned up on unmount.
+ * Under reduced motion it paints single frames (on resize, on becoming visible, on `invalidate`).
+ */
+export type Frame = { ctx: CanvasRenderingContext2D; w: number; h: number; t: number; reduced: boolean };
+
+export function useCanvasLoop(draw: (f: Frame) => void, fps = 30) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const drawRef = useRef(draw);
+  const fpsRef = useRef(fps);
+  const paintRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    drawRef.current = draw;
+    fpsRef.current = fps;
+  });
+
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const t0 = performance.now();
+    let w = 0;
+    let h = 0;
+    let raf = 0;
+    let last = 0;
+    let visible = false;
+
+    const paint = (now = performance.now()) => {
+      if (!w || !h) return;
+      ctx.clearRect(0, 0, w, h);
+      drawRef.current({ ctx, w, h, t: (now - t0) / 1000, reduced: mq.matches });
+    };
+    const tick = (now: number) => {
+      raf = 0;
+      if (!visible || mq.matches) return;
+      if (now - last >= 1000 / fpsRef.current - 2) {
+        last = now;
+        paint(now);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    const start = () => {
+      paint();
+      if (!raf && visible && !mq.matches) raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    const resize = () => {
+      const r = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      w = r.width;
+      h = r.height;
+      canvas.width = Math.max(1, Math.round(w * dpr));
+      canvas.height = Math.max(1, Math.round(h * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paint();
+    };
+
+    paintRef.current = () => paint();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible) start();
+      else stop();
+    });
+    io.observe(canvas);
+    const onMotion = () => (mq.matches ? (stop(), paint()) : start());
+    mq.addEventListener("change", onMotion);
+    resize();
+
+    return () => {
+      stop();
+      ro.disconnect();
+      io.disconnect();
+      mq.removeEventListener("change", onMotion);
+      paintRef.current = () => {};
+    };
+  }, []);
+
+  return { ref, invalidate: () => paintRef.current() };
+}
