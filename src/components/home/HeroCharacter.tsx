@@ -2,36 +2,42 @@
 
 import { useEffect, useRef } from "react";
 import NextImage from "next/image";
-import { character, type CharacterFrame } from "@/content/character";
+import { character } from "@/content/character";
 import { prefersReducedMotion } from "@/lib/hooks";
 
 /**
  * The hero character: the owner's own head-turn animation, played one real frame at a time.
  *
+ * How he follows the cursor:
  * - Frames come from his character video (tools/character/extract.py, metadata in
  *   content/character.ts). Each frame says which way it looks (screen angle) and how far (mag).
- * - The cursor sets a target angle and mag (atan2 from the face; near the face = mag 0 = eye
- *   contact). The angle eases with lerpAngle, the mag with lerp, and the canvas shows the single
- *   nearest real frame. Frames are never blended, and the picture never moves (no CSS 3D).
- * - Idle: the video's own blink, and now and then a small glance up and away.
+ *   The video turns his head in a full circle, so almost every direction exists only as a full
+ *   turn; only "up" and "up-left" also have the in-between frames of the head turning out.
+ * - So there are two kinds of pose to aim for: looking at you (the cursor is on his face) or
+ *   turned toward the cursor (the full-turn frame nearest its direction). That is what makes him
+ *   respond the moment the cursor leaves his face, instead of waiting for it to travel far away.
+ * - He never jumps across the circle. The frames form a graph: neighbours in the video, the
+ *   circle closed on itself, and a direct turn from looking at you to each full turn. The shown
+ *   frame walks the shortest route to the aimed pose, one real frame per step (two when far
+ *   behind), the way the video itself plays. Frames are never blended, and the picture never
+ *   moves (no CSS 3D).
+ * - Idle: the video's own blink, and now and then a small glance up and away (the gentle
+ *   in-between frames, there and back).
  * - Phones: a touch on the hero turns him toward your finger, then he looks back at you.
  * - Reduced motion: the still centre frame only.
  *
  * The <img> holds the centre frame from the first paint; the canvas covers it once ready.
  */
 
-type Loaded = CharacterFrame & { img: Frame; x: number; y: number };
-
 const FACE = { x: 0.5, y: 0.34 }; // where his face sits in the frame (centre frame), as fractions
-const NEAR = 0.16; // within this many card-heights of the face: look straight at you
-const FAR = 0.95; // this far away or more: fully turned
-const SWITCH = 0.025; // hysteresis: a new frame must be this much nearer than the shown one
+const EYE_IN = 0.14; // cursor closer than this many card-heights to his face: look at you
+const EYE_OUT = 0.18; // ...and further than this to turn away again (hysteresis, no flicker)
+const RING = 0.85; // frames turned at least this far count as full turns
+const AIM_HOLD = (4 * Math.PI) / 180; // a new full turn must be this much closer in angle
+const STEP = 1000 / 60; // one real frame per display frame...
+const STEP_FAST = 1000 / 120; // ...two when the shown frame is far behind the aim
+const CUT = 10; // cost of turning straight from "looking at you" to a full turn, in frames (near "up" the video's own in-between frames win)
 const DPR = 1.5; // DESIGN §5 cap: on this class of GPU a 2× canvas on the tilted card cost scroll frames
-
-function lerpAngle(a: number, b: number, t: number) {
-  const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
-  return a + d * t;
-}
 
 /** A frame, decoded off the main thread into a GPU-ready bitmap (drawing it never decodes). */
 type Frame = { bmp: ImageBitmap; name: string };
@@ -46,6 +52,62 @@ function load(src: string): Promise<Frame | null> {
     );
 }
 
+const angDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+
+/**
+ * The pose graph. Node 0 is the centre frame (looking at you); node i + 1 is character.frames[i].
+ * Edges: neighbours in the video (it starts and ends looking at you), the circle closed across
+ * its one gap, and a direct turn from the centre to every full turn.
+ */
+const N = character.frames.length + 1;
+const ANG = [0, ...character.frames.map((f) => (f.angle * Math.PI) / 180)];
+const MAG = [0, ...character.frames.map((f) => f.mag)];
+const RING_NODES = Array.from({ length: N }, (_, i) => i).filter((i) => i > 0 && MAG[i] >= RING);
+const EDGES: [number, number][][] = Array.from({ length: N }, () => []);
+const link = (a: number, b: number, w: number) => {
+  if (EDGES[a].some(([n]) => n === b)) return;
+  EDGES[a].push([b, w]);
+  EDGES[b].push([a, w]);
+};
+for (let i = 0; i < N - 1; i++) link(i, i + 1, 1);
+link(N - 1, 0, 1);
+{
+  const byAngle = [...RING_NODES].sort((a, b) => ANG[a] - ANG[b]);
+  const step = (2 * Math.PI) / byAngle.length;
+  byAngle.forEach((a, k) => {
+    const b = byAngle[(k + 1) % byAngle.length];
+    link(a, b, Math.max(1, Math.round(angDiff(ANG[a], ANG[b]) / step)));
+  });
+}
+for (const r of RING_NODES) link(0, r, CUT);
+
+/** The cheapest route from one pose to another (Dijkstra on a graph of 65 nodes: instant). */
+function route(from: number, to: number, ok: (i: number) => boolean): number[] {
+  if (from === to) return [];
+  const dist = new Array<number>(N).fill(Infinity);
+  const prev = new Array<number>(N).fill(-1);
+  const done = new Array<boolean>(N).fill(false);
+  dist[from] = 0;
+  for (;;) {
+    let u = -1;
+    for (let i = 0; i < N; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i;
+    if (u < 0 || u === to) break;
+    done[u] = true;
+    for (const [v, w] of EDGES[u]) {
+      // A frame that hasn't arrived yet can be passed through (skipped), but costs a little more.
+      const c = dist[u] + w + (ok(v) ? 0 : 0.5);
+      if (c < dist[v]) {
+        dist[v] = c;
+        prev[v] = u;
+      }
+    }
+  }
+  if (prev[to] < 0) return [];
+  const path: number[] = [];
+  for (let v = to; v !== from; v = prev[v]) path.push(v);
+  return path.reverse();
+}
+
 export function HeroCharacter({ alt }: { alt: string }) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -58,24 +120,27 @@ export function HeroCharacter({ alt }: { alt: string }) {
     if (!ctx) return;
 
     let alive = true;
-    let center: Frame | null = null;
+    const img: (Frame | null)[] = new Array(N).fill(null); // img[0] is the centre frame
     let blink: Frame[] = [];
-    const frames: Loaded[] = [];
-    let shown: Frame | null = null;
-    let shownFrame: Loaded | null = null;
+    let drawn: Frame | null = null;
 
-    // Gaze state: target and current, as screen angle (radians) and mag (0..1).
-    const target = { a: 0, m: 0 };
-    const cur = { a: 0, m: 0 };
+    // Pose state: the node shown, the node aimed at, and the route between them.
+    let at = 0;
+    let aim = 0;
+    let path: number[] = [];
+    let stepAcc = 0;
+    let looking = true; // the cursor is on his face (with hysteresis)
+
     let pointer: { x: number; y: number } | null = null;
     let lastInput = performance.now();
-    let blinkAt = performance.now() + 3000 + Math.random() * 2500;
+    let blinkAt = performance.now() + 2500 + Math.random() * 2500;
     let blinkStart = -1;
     let glanceUntil = 0;
     let glanceNext = performance.now() + 7000;
     let release = 0;
 
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const has = (i: number) => img[i] !== null;
 
     // --- canvas size and drawing -------------------------------------------------------------
     const size = () => {
@@ -83,52 +148,47 @@ export function HeroCharacter({ alt }: { alt: string }) {
       const s = Math.min(window.devicePixelRatio || 1, DPR);
       cv.width = Math.max(1, Math.round(r.width * s));
       cv.height = Math.max(1, Math.round(r.height * s));
-      if (shown) paint(shown, true);
+      if (drawn) paint(drawn, true);
     };
-    const paint = (img: Frame, force = false) => {
-      if (img === shown && !force) return;
-      shown = img;
+    const paint = (f: Frame, force = false) => {
+      if (f === drawn && !force) return;
+      drawn = f;
       // Cover-fit, anchored to the bottom (the shoulders sit on the card's lower edge).
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      const k = Math.max(cv.width / img.bmp.width, cv.height / img.bmp.height);
-      const w = img.bmp.width * k;
-      const h = img.bmp.height * k;
-      ctx.drawImage(img.bmp, (cv.width - w) / 2, cv.height - h, w, h);
+      const k = Math.max(cv.width / f.bmp.width, cv.height / f.bmp.height);
+      const w = f.bmp.width * k;
+      const h = f.bmp.height * k;
+      ctx.drawImage(f.bmp, (cv.width - w) / 2, cv.height - h, w, h);
       el.dataset.live = "";
-      el.dataset.frame = img.name; // which frame is up (tests, devtools)
+      el.dataset.frame = f.name; // which frame is up (tests, devtools)
     };
 
-    // --- choosing a frame --------------------------------------------------------------------
-    const pick = (): Frame | null => {
-      if (!center) return null;
-      const now = performance.now();
-      const gx = cur.m * Math.cos(cur.a);
-      const gy = cur.m * Math.sin(cur.a);
-      let best: Loaded | null = null;
-      let bd = Math.hypot(gx, gy); // the centre frame sits at (0, 0)
-      for (const f of frames) {
-        const d = Math.hypot(gx - f.x, gy - f.y);
+    // --- choosing what to aim at -------------------------------------------------------------
+    /** The full turn nearest a direction, among the frames that have arrived. */
+    const nearestTurn = (a: number) => {
+      let best = -1;
+      for (const i of RING_NODES) if (has(i) && (best < 0 || angDiff(ANG[i], a) < angDiff(ANG[best], a))) best = i;
+      return best;
+    };
+    /** A gentle in-between frame (for idle glances): the one nearest a direction and a small turn. */
+    const nearestSoft = (a: number, m: number) => {
+      let best = -1;
+      let bd = Infinity;
+      for (let i = 1; i < N; i++) {
+        if (!has(i) || MAG[i] >= RING) continue;
+        const d = Math.hypot(MAG[i] * Math.cos(ANG[i]) - m * Math.cos(a), MAG[i] * Math.sin(ANG[i]) - m * Math.sin(a));
         if (d < bd) {
           bd = d;
-          best = f;
+          best = i;
         }
       }
-      // Hysteresis, so two neighbours never flicker back and forth.
-      const sd = shownFrame ? Math.hypot(gx - shownFrame.x, gy - shownFrame.y) : Math.hypot(gx, gy);
-      if (best !== shownFrame && bd > sd - SWITCH) best = shownFrame;
-      shownFrame = best;
-      if (best) return best.img;
-      // Looking at you: the video's own blink plays now and then.
-      if (blinkStart >= 0 && blink.length === 2) {
-        const t = now - blinkStart;
-        if (t < 60) return blink[0];
-        if (t < 140) return blink[1];
-        if (t < 210) return blink[0];
-        blinkStart = -1;
-        blinkAt = now + 2600 + Math.random() * 3400;
-      }
-      return center;
+      return best;
+    };
+    const setAim = (n: number) => {
+      if (n < 0 || n === aim) return;
+      aim = n;
+      path = route(at, aim, has);
     };
 
     // --- the loop (runs only while something is moving and the hero is on screen) -----------
@@ -137,51 +197,69 @@ export function HeroCharacter({ alt }: { alt: string }) {
     let visible = false;
     const tick = (t: number) => {
       raf = 0;
-      if (!alive || !visible) return;
-      const dt = Math.min(0.05, last ? (t - last) / 1000 : 0.016);
+      if (!alive || !visible || !img[0]) return;
+      const dt = Math.min(100, last ? t - last : STEP);
       last = t;
       const now = performance.now();
 
       if (pointer) {
         const r = el.getBoundingClientRect();
-        const fx = r.left + r.width * FACE.x;
-        const fy = r.top + r.height * FACE.y;
-        const dx = pointer.x - fx;
-        const dy = pointer.y - fy;
+        const dx = pointer.x - (r.left + r.width * FACE.x);
+        const dy = pointer.y - (r.top + r.height * FACE.y);
         const d = Math.hypot(dx, dy) / r.height;
-        target.a = Math.atan2(dy, dx);
-        target.m = Math.min(1, Math.max(0, (d - NEAR) / (FAR - NEAR)));
-      } else if (now < glanceUntil) {
-        // keep the glance target
-      } else {
-        target.m = 0;
-        if (frames.length && now > glanceNext && now - lastInput > 6000) {
-          // A small real glance: up, or up and to his side (the gentle frames the video has).
-          target.a = Math.random() < 0.5 ? -Math.PI / 2 : (205 * Math.PI) / 180;
-          target.m = 0.42;
-          glanceUntil = now + 1100;
+        looking = looking ? d < EYE_OUT : d < EYE_IN;
+        if (looking) setAim(0);
+        else {
+          const a = Math.atan2(dy, dx);
+          // Hold the current full turn unless another is clearly nearer (no back-and-forth).
+          const n = nearestTurn(a);
+          if (n >= 0 && !(MAG[aim] >= RING && has(aim) && angDiff(ANG[aim], a) <= angDiff(ANG[n], a) + AIM_HOLD)) setAim(n);
+        }
+      } else if (now >= glanceUntil) {
+        looking = true;
+        setAim(0);
+        if (now > glanceNext && now - lastInput > 6000) {
+          // A small real glance: up, or up and to his side (the in-between frames the video has).
+          setAim(nearestSoft(Math.random() < 0.5 ? -Math.PI / 2 : (205 * Math.PI) / 180, 0.45));
+          glanceUntil = now + 1200;
           glanceNext = now + 8000 + Math.random() * 6000;
         }
       }
 
-      // Ease: the angle on the circle (lerpAngle), the mag on a line.
-      const ka = 1 - Math.exp(-dt * 11);
-      const km = 1 - Math.exp(-dt * 8);
-      cur.a = cur.m < 0.02 ? target.a : lerpAngle(cur.a, target.a, ka);
-      cur.m += (target.m - cur.m) * km;
+      // Walk the route: one real frame per step, faster when far behind.
+      if (path.length) {
+        stepAcc += dt;
+        const interval = path.length > 8 ? STEP_FAST : STEP;
+        while (path.length && stepAcc >= interval - 2) {
+          stepAcc = Math.max(0, stepAcc - interval);
+          // Skip frames that haven't arrived yet; stop on the next one that has.
+          let n = path.shift()!;
+          while (!has(n) && path.length) n = path.shift()!;
+          if (has(n)) at = n;
+        }
+        if (!path.length) stepAcc = 0;
+      } else stepAcc = 0;
 
       // Blink only while looking at you; otherwise try again a little later.
       if (blinkStart < 0 && now > blinkAt) {
-        if (cur.m < 0.12 && target.m < 0.12 && !shownFrame) blinkStart = now;
+        if (at === 0 && aim === 0 && blink.length === 2) blinkStart = now;
         else blinkAt = now + 1500;
       }
+      let f = img[at] ?? img[0];
+      if (at === 0 && blinkStart >= 0) {
+        const bt = now - blinkStart;
+        if (bt < 60) f = blink[0];
+        else if (bt < 140) f = blink[1];
+        else if (bt < 210) f = blink[0];
+        else {
+          blinkStart = -1;
+          blinkAt = now + 2600 + Math.random() * 3400;
+        }
+      } else if (at !== 0) blinkStart = -1;
+      if (f) paint(f);
 
-      const img = pick();
-      if (img) paint(img);
-
-      const settling = Math.abs(target.m - cur.m) > 0.004 || (cur.m > 0.02 && Math.abs(Math.atan2(Math.sin(target.a - cur.a), Math.cos(target.a - cur.a))) > 0.004);
-      if (settling || blinkStart >= 0 || now < glanceUntil) kick();
-      else wake(); // sleep until the next blink or glance
+      if (path.length || blinkStart >= 0 || now < glanceUntil) kick();
+      else wake(); // sleep until the next blink or glance (or the next pointer move)
     };
     let sleeper = 0;
     const kick = () => {
@@ -190,30 +268,30 @@ export function HeroCharacter({ alt }: { alt: string }) {
     };
     const wake = () => {
       window.clearTimeout(sleeper);
+      last = 0;
       const now = performance.now();
-      const next = Math.min(blinkAt, frames.length && !pointer ? Math.max(glanceNext, lastInput + 6000) : Infinity, glanceUntil > now ? glanceUntil : Infinity);
-      sleeper = window.setTimeout(() => {
-        last = 0;
-        kick();
-      }, Math.max(16, next - now));
+      const next = Math.min(blinkAt, !pointer ? Math.max(glanceNext, lastInput + 6000) : Infinity, glanceUntil > now ? glanceUntil : Infinity);
+      sleeper = window.setTimeout(kick, Math.max(16, next - now));
     };
 
     // --- input -------------------------------------------------------------------------------
     const onMove = (e: PointerEvent) => {
-      if (e.pointerType === "mouse" || e.pointerType === "pen") pointer = { x: e.clientX, y: e.clientY };
-      else return;
+      if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+      pointer = { x: e.clientX, y: e.clientY };
       lastInput = performance.now();
+      loadFrames();
       kick();
     };
     const onLeave = () => {
       pointer = null;
+      glanceUntil = 0;
       lastInput = performance.now();
       kick();
     };
     const hero = el.closest("section") ?? document.body;
     const onTouch = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
-      loadFrames(true);
+      loadFrames();
       window.clearTimeout(release);
       pointer = { x: e.clientX, y: e.clientY };
       lastInput = performance.now();
@@ -226,45 +304,38 @@ export function HeroCharacter({ alt }: { alt: string }) {
     };
 
     // --- loading -----------------------------------------------------------------------------
-    let framesRequested = false;
-    let urgent = false; // a finger is on the hero: stop waiting for idle time
+    // All direction frames at once (about 10 KB each), as soon as a mouse moves or the page has
+    // settled. They decode off the main thread and join the choice as they arrive; until a
+    // direction has arrived he turns to the nearest one that has.
+    let requested = false;
     let startTimer = 0;
-    const idle = (fn: () => void) =>
-      urgent ? window.setTimeout(fn, 0) : typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(fn, { timeout: 600 }) : window.setTimeout(fn, 50);
-    const loadFrames = (now = false) => {
-      if (now) urgent = true;
-      if (framesRequested) return;
-      framesRequested = true;
-      // A few at a time, in idle time, in an order that covers the whole circle early
-      // (every 32nd, then every 16th, every 8th...). Each frame joins the choice once decoded.
-      const order: number[] = [];
-      for (let step = 32; step >= 1; step /= 2)
-        for (let i = 0; i < character.frames.length; i += step) if (!order.includes(i)) order.push(i);
-      let next = 0;
-      const pump = () => {
-        if (!alive || next >= order.length) return;
-        const f = character.frames[order[next++]];
-        load(f.src).then((img) => {
-          if (img && alive) {
-            const a = (f.angle * Math.PI) / 180;
-            frames.push({ ...f, img, x: f.mag * Math.cos(a), y: f.mag * Math.sin(a) });
+    const loadFrames = () => {
+      if (requested) return;
+      requested = true;
+      window.clearTimeout(startTimer);
+      character.frames.forEach((f, i) =>
+        load(f.src).then((fr) => {
+          if (!fr) return;
+          if (!alive) return fr.bmp.close();
+          img[i + 1] = fr;
+          if (pointer) {
+            // A better match may just have arrived: re-aim.
+            aim = -1;
+            kick();
           }
-          idle(pump);
-        });
-      };
-      for (let k = 0; k < 4; k++) idle(pump);
+        }),
+      );
     };
 
-    load(character.center).then((img) => {
-      if (!img || !alive) return;
-      center = img;
+    load(character.center).then((fr) => {
+      if (!fr || !alive) return;
+      img[0] = fr;
       size();
-      paint(img, true);
+      paint(fr, true);
       Promise.all(character.blink.map(load)).then((b) => {
         if (alive && b.every(Boolean)) blink = b as Frame[];
       });
-      // Desktop with a mouse: preload all directions once the page has settled.
-      if (fine) startTimer = window.setTimeout(() => loadFrames(), 1200);
+      if (fine) startTimer = window.setTimeout(loadFrames, 900);
       kick();
     });
 
@@ -292,7 +363,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
 
     return () => {
       alive = false;
-      [center, ...blink, ...frames.map((f) => f.img)].forEach((f) => f?.bmp.close());
+      [...img, ...blink].forEach((f) => f?.bmp.close());
       cancelAnimationFrame(raf);
       window.clearTimeout(sleeper);
       window.clearTimeout(release);

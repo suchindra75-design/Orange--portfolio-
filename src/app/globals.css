@@ -51,6 +51,8 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
   --ease-cine: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Every Tailwind transition decelerates into place (DESIGN §4), never the browser's default curve. */
+  --default-transition-timing-function: var(--ease-out-expo);
 }
 
 :root {
@@ -246,7 +248,7 @@ body {
     font-size: 0.72rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    transition: transform 0.5s var(--ease-out-expo), background-color 0.3s, color 0.3s, border-color 0.3s;
+    transition: transform 0.5s var(--ease-out-expo), background-color 0.3s var(--ease-out-expo), color 0.3s var(--ease-out-expo), border-color 0.3s var(--ease-out-expo);
   }
   .btn:hover {
     transform: translateY(-2px);
@@ -626,7 +628,7 @@ body {
   gap: 1rem;
   padding-inline: var(--gutter);
   color: var(--color-bone);
-  transition: color 0.4s;
+  transition: color 0.4s var(--ease-out-expo);
   pointer-events: none;
   view-transition-name: site-nav;
 }
@@ -859,7 +861,7 @@ html:active-view-transition-type(open-project)::view-transition-new(root) {
   height: 1.5rem;
   border-radius: 999px;
   background: color-mix(in oklab, currentColor 22%, transparent);
-  transition: background-color 0.3s;
+  transition: background-color 0.3s var(--ease-out-expo);
   flex-shrink: 0;
 }
 .switch::after {
@@ -889,7 +891,7 @@ html:active-view-transition-type(open-project)::view-transition-new(root) {
 .crowd .pupil {
   /* Idle: everyone looks toward the one real face in the middle (--lx, per person). The cursor overrides. */
   transform: translate(calc(var(--ex, var(--lx, 0)) * 2.6px), calc(var(--ey, 0) * 1.8px));
-  transition: transform 0.25s ease-out;
+  transition: transform 0.35s var(--ease-out-expo);
 }
 
 /* Each crowd layer lays its people out in the drawing's 2000×560 units, scaled to cover the
