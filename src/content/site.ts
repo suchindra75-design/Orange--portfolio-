@@ -34,8 +34,8 @@ export const site = {
     schoolShort: "CBIT, Hyderabad",
     years: "2023–2027",
   },
-  /** PLACEHOLDER — the deployed URL (used for canonical links, sitemap, OG). */
-  url: "https://example.com",
+  /** The deployed URL (canonical links, sitemap, share images): the Vercel production domain. */
+  url: "https://suchindra-portfolio.vercel.app",
   description:
     "Suchindra Denduluri builds software products, AI assistants, automation and hardware-connected apps: a voice assistant that acts on his computer, telemetry platforms, an EEG workstation and a multi-tenant school ERP.",
   /** AI-assisted development tools in daily use. */
