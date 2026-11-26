@@ -20,27 +20,30 @@ import { prefersReducedMotion } from "@/lib/hooks";
  * The <img> holds the centre frame from the first paint; the canvas covers it once ready.
  */
 
-type Loaded = CharacterFrame & { img: HTMLImageElement; x: number; y: number };
+type Loaded = CharacterFrame & { img: Frame; x: number; y: number };
 
 const FACE = { x: 0.5, y: 0.34 }; // where his face sits in the frame (centre frame), as fractions
 const NEAR = 0.16; // within this many card-heights of the face: look straight at you
 const FAR = 0.95; // this far away or more: fully turned
 const SWITCH = 0.025; // hysteresis: a new frame must be this much nearer than the shown one
-const DPR = 1.5; // 2D canvas cap (DESIGN §5)
+const DPR = 1.5; // DESIGN §5 cap: on this class of GPU a 2× canvas on the tilted card cost scroll frames
 
 function lerpAngle(a: number, b: number, t: number) {
   const d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
   return a + d * t;
 }
 
-function load(src: string) {
-  const img = new Image();
-  img.decoding = "async";
-  img.src = src;
-  return img.decode().then(
-    () => img,
-    () => null,
-  );
+/** A frame, decoded off the main thread into a GPU-ready bitmap (drawing it never decodes). */
+type Frame = { bmp: ImageBitmap; name: string };
+function load(src: string): Promise<Frame | null> {
+  const name = src.slice(src.lastIndexOf("/") + 1);
+  return fetch(src)
+    .then((r) => (r.ok ? r.blob() : Promise.reject()))
+    .then((b) => createImageBitmap(b))
+    .then(
+      (bmp) => ({ bmp, name }),
+      () => null,
+    );
 }
 
 export function HeroCharacter({ alt }: { alt: string }) {
@@ -55,10 +58,10 @@ export function HeroCharacter({ alt }: { alt: string }) {
     if (!ctx) return;
 
     let alive = true;
-    let center: HTMLImageElement | null = null;
-    let blink: HTMLImageElement[] = [];
+    let center: Frame | null = null;
+    let blink: Frame[] = [];
     const frames: Loaded[] = [];
-    let shown: HTMLImageElement | null = null;
+    let shown: Frame | null = null;
     let shownFrame: Loaded | null = null;
 
     // Gaze state: target and current, as screen angle (radians) and mag (0..1).
@@ -82,20 +85,22 @@ export function HeroCharacter({ alt }: { alt: string }) {
       cv.height = Math.max(1, Math.round(r.height * s));
       if (shown) paint(shown, true);
     };
-    const paint = (img: HTMLImageElement, force = false) => {
+    const paint = (img: Frame, force = false) => {
       if (img === shown && !force) return;
       shown = img;
       // Cover-fit, anchored to the bottom (the shoulders sit on the card's lower edge).
-      const k = Math.max(cv.width / img.naturalWidth, cv.height / img.naturalHeight);
-      const w = img.naturalWidth * k;
-      const h = img.naturalHeight * k;
-      ctx.drawImage(img, (cv.width - w) / 2, cv.height - h, w, h);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      const k = Math.max(cv.width / img.bmp.width, cv.height / img.bmp.height);
+      const w = img.bmp.width * k;
+      const h = img.bmp.height * k;
+      ctx.drawImage(img.bmp, (cv.width - w) / 2, cv.height - h, w, h);
       el.dataset.live = "";
-      el.dataset.frame = img.src.slice(img.src.lastIndexOf("/") + 1); // which frame is up (tests, devtools)
+      el.dataset.frame = img.name; // which frame is up (tests, devtools)
     };
 
     // --- choosing a frame --------------------------------------------------------------------
-    const pick = (): HTMLImageElement | null => {
+    const pick = (): Frame | null => {
       if (!center) return null;
       const now = performance.now();
       const gx = cur.m * Math.cos(cur.a);
@@ -205,10 +210,6 @@ export function HeroCharacter({ alt }: { alt: string }) {
       lastInput = performance.now();
       kick();
     };
-    // The page moving under a still mouse changes where the mouse is relative to his face.
-    const onScroll = () => {
-      if (pointer) kick();
-    };
     const hero = el.closest("section") ?? document.body;
     const onTouch = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
@@ -260,7 +261,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
       size();
       paint(img, true);
       Promise.all(character.blink.map(load)).then((b) => {
-        if (alive && b.every(Boolean)) blink = b as HTMLImageElement[];
+        if (alive && b.every(Boolean)) blink = b as Frame[];
       });
       // Desktop with a mouse: preload all directions once the page has settled.
       if (fine) startTimer = window.setTimeout(() => loadFrames(), 1200);
@@ -282,7 +283,6 @@ export function HeroCharacter({ alt }: { alt: string }) {
     });
     io.observe(el);
     window.addEventListener("pointermove", onMove, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave);
     window.addEventListener("blur", onLeave);
     hero.addEventListener("pointerdown", onTouch, { passive: true });
@@ -292,6 +292,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
 
     return () => {
       alive = false;
+      [center, ...blink, ...frames.map((f) => f.img)].forEach((f) => f?.bmp.close());
       cancelAnimationFrame(raf);
       window.clearTimeout(sleeper);
       window.clearTimeout(release);
@@ -299,7 +300,6 @@ export function HeroCharacter({ alt }: { alt: string }) {
       ro.disconnect();
       io.disconnect();
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("scroll", onScroll);
       document.documentElement.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("blur", onLeave);
       hero.removeEventListener("pointerdown", onTouch);

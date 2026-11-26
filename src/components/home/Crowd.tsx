@@ -42,7 +42,8 @@ function Layer({ people, id }: { people: Person[]; id: string }) {
               viewBox={`${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`}
               overflow="visible"
               className="crowd-person"
-              style={{ left: pct(x0 / W), top: pct(y0 / H), width: pct(w / W), height: pct(h / H), ["--dx" as string]: pct(p.flow / w) }}
+              data-dx={((p.flow / w) * 100).toFixed(3)}
+              style={{ left: pct(x0 / W), top: pct(y0 / H), width: pct(w / W), height: pct(h / H), transform: `translateX(${pct(p.flow / w)})` }}
             >
               <PersonSvg p={p} pat={pat} />
             </svg>
@@ -68,13 +69,24 @@ export function Crowd({ name }: { name: string }) {
     () => {
       const el = ref.current;
       if (!el) return;
+      const people = Array.from(el.querySelectorAll<SVGSVGElement>(".crowd-person")).map((n) => ({ n, dx: Number(n.dataset.dx) || 0 }));
+      // Each person's own transform, written directly (a CSS variable on the crowd would restyle
+      // every shape in the drawing on every frame).
+      let last = -1;
+      const place = (flow: number) => {
+        const f = Math.round(flow * 1000) / 1000;
+        if (f === last) return;
+        last = f;
+        for (const { n, dx } of people) n.style.transform = f === 0 ? "none" : `translateX(${(dx * f).toFixed(2)}%)`;
+      };
       if (prefersReducedMotion()) {
-        el.style.setProperty("--flow", "0");
+        place(0);
         return;
       }
       const st = { trigger: el, start: "top bottom", end: "bottom bottom", scrub: MOTION.scrubSlow };
       // The crowd starts gathered close around him and flows outward as the panorama arrives.
-      gsap.fromTo(el, { "--flow": 1 }, { "--flow": 0, ease: "none", scrollTrigger: { ...st, start: "top 95%" } });
+      const flow = { v: 1 };
+      gsap.fromTo(flow, { v: 1 }, { v: 0, ease: "none", onUpdate: () => place(flow.v), scrollTrigger: { ...st, start: "top 95%" } });
       gsap.fromTo("[data-depth=name]", { xPercent: 4 }, { xPercent: -4, ease: "none", scrollTrigger: st });
       gsap.fromTo("[data-depth=hero]", { yPercent: 2 }, { yPercent: 0, ease: "power2.out", scrollTrigger: st });
     },
@@ -84,7 +96,7 @@ export function Crowd({ name }: { name: string }) {
   useEffect(() => {
     const el = ref.current!;
     // Eye-tracking is decoration: off under reduced motion, and only listening while the crowd is on screen.
-    if (prefersReducedMotion()) return;
+    if (prefersReducedMotion()) return; // nothing moves, so no layers either
     let raf = 0;
     let listening = false;
     let idle = 0;
@@ -106,11 +118,13 @@ export function Crowd({ name }: { name: string }) {
       });
     };
     const io = new IntersectionObserver(([entry]) => {
+      // Layers only while the crowd is near the screen (see .crowd[data-live] in globals.css).
+      el.toggleAttribute("data-live", entry.isIntersecting);
       if (entry.isIntersecting === listening) return;
       listening = entry.isIntersecting;
       if (listening) window.addEventListener("pointermove", onMove, { passive: true });
       else window.removeEventListener("pointermove", onMove);
-    });
+    }, { rootMargin: "300px 0px" });
     io.observe(el);
     return () => {
       io.disconnect();
@@ -121,9 +135,9 @@ export function Crowd({ name }: { name: string }) {
   }, []);
 
   return (
-    <div ref={ref} className="crowd relative h-[clamp(440px,42vw,700px)] overflow-hidden bg-pop text-ink" style={{ ["--flow" as string]: 1 }}>
+    <div ref={ref} className="crowd relative h-[clamp(440px,42vw,700px)] overflow-hidden bg-pop text-ink">
       {/* The name, enormous, behind everyone */}
-      <div data-depth="name" aria-hidden="true" className="pointer-events-none absolute will-change-transform inset-x-[-6%] top-[5%] flex select-none justify-center">
+      <div data-depth="name" aria-hidden="true" className="pointer-events-none absolute inset-x-[-6%] top-[5%] flex select-none justify-center">
         <span className="t-name whitespace-nowrap uppercase text-cream" style={{ fontSize: "clamp(3.4rem, 16.6vw, 19rem)" }}>
           {name}
         </span>
@@ -134,7 +148,7 @@ export function Crowd({ name }: { name: string }) {
       </svg>
       <Layer people={BACK} id="crowd-back" />
       {/* The main character: his actual photograph, printed in the crowd's ink */}
-      <div data-depth="hero" className="absolute will-change-transform left-1/2 top-[22%] z-[3] aspect-[1808/2862] h-[80%] -translate-x-1/2 md:top-[12%] md:h-[94%]">
+      <div data-depth="hero" className="absolute left-1/2 top-[22%] z-[3] aspect-[1808/2862] h-[80%] -translate-x-1/2 md:top-[12%] md:h-[94%]">
         <Image src="/me/footer-ink.png" alt={`${name}, standing at the centre of the crowd`} fill sizes="(max-width: 768px) 60vw, 26vw" className="sticker-cut object-contain object-top" />
       </div>
       <Layer people={FRONT} id="crowd-front" />

@@ -4,7 +4,8 @@
 export const PLAN_CSS = `
 /* SIMPLEIN plan drawing: the line drawing draws itself wing by wing (≤ 1.2 s), then rests.
    Every stroked shape carries pathLength="1", so a dash of 1 is the whole outline.
-   --d is each group's start (seconds). Compositor-cheap: stroke-dashoffset and opacity only. */
+   --d is each group's start (seconds). Compositor-cheap: stroke-dashoffset and opacity only. Fades and fills run 'backwards'
+   (not 'both'), so once done they hand back to the resting style and drop their layers. */
 
 .sps-svg {
   display: block;
@@ -17,17 +18,17 @@ export const PLAN_CSS = `
   animation: sps-draw 0.5s cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0s) both;
 }
 .sps-anim .sps-f {
-  animation: sps-fill 0.45s ease-out calc(var(--d, 0s) + 0.18s) both;
+  animation: sps-fill 0.45s ease-out calc(var(--d, 0s) + 0.18s) backwards;
 }
 .sps-anim .sps-sf {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   animation:
     sps-draw 0.5s cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0s) both,
-    sps-fill 0.45s ease-out calc(var(--d, 0s) + 0.18s) both;
+    sps-fill 0.45s ease-out calc(var(--d, 0s) + 0.18s) backwards;
 }
 .sps-anim .sps-t {
-  animation: sps-fade 0.35s ease-out calc(var(--d, 0s) + 0.22s) both;
+  animation: sps-fade 0.35s ease-out calc(var(--d, 0s) + 0.22s) backwards;
 }
 
 @keyframes sps-draw {

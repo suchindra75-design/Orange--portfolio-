@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { FrameSet, REVEAL_REST, fitCanvas, revealSrc } from "./frames";
+import { REVEAL_REST, revealSrc } from "./frames";
 import { IWStyles, s } from "./styles";
+import { isScrolling } from "@/lib/scroll";
 
 /** The turntable uses the calmer end of the reveal: frames FIRST..REVEAL_REST, swung back and forth. */
 const FIRST = 14;
@@ -30,32 +31,90 @@ export function Mini() {
     if (!ctx) return;
 
     const indices = Array.from({ length: SPAN + 1 }, (_, k) => FIRST + k);
-    const frames = new FrameSet(REVEAL_REST + 1, (i) => revealSrc(i, "m"));
+    // Compressed frames (about 25 KB each), fetched once; decoding happens off the main thread.
+    const blobs = new Map<number, Blob>();
+    let loading = false;
+    const loadAll = () => {
+      if (loading) return;
+      loading = true;
+      const order = [REVEAL_REST, ...indices.slice(0, -1).reverse()];
+      let next = 0;
+      const pump = () => {
+        if (disposed || next >= order.length) return;
+        const i = order[next++];
+        fetch(revealSrc(i, "m"))
+          .then((r) => (r.ok ? r.blob() : null))
+          .then((b) => {
+            if (b && !disposed) blobs.set(i, b);
+          })
+          .catch(() => {})
+          .finally(pump);
+      };
+      for (let k = 0; k < 4; k++) pump();
+    };
     let raf = 0;
     let visible = false;
     let last = 0;
     let t0 = performance.now();
     let paused = 0;
     let wasLive = false;
+    let disposed = false;
+
+    // The renders are 1200×750; the card is far smaller. Each frame is decoded off the main
+    // thread straight to the canvas's own pixel size (high-quality filtering) and kept as a
+    // bitmap, so nothing is decoded or scaled while the page scrolls (decoding full-size frames
+    // on the main thread used to stall scrolling for up to 100 ms). Canvas DPR ≤ 1.5 (DESIGN §5).
+    const bitmaps = new Map<number, ImageBitmap>();
+    const pending = new Set<number>();
+    let gen = 0;
+    const size = () => {
+      const r = Math.min(window.devicePixelRatio || 1, 1.5);
+      const w = Math.max(1, Math.round(canvas.clientWidth * r));
+      const h = Math.max(1, Math.round(canvas.clientHeight * r));
+      if (canvas.width === w && canvas.height === h) return;
+      canvas.width = w;
+      canvas.height = h;
+      gen++;
+      bitmaps.forEach((b) => b.close());
+      bitmaps.clear();
+      pending.clear();
+    };
+    const bitmap = (i: number): ImageBitmap | null => {
+      const have = bitmaps.get(i);
+      if (have) return have;
+      const blob = blobs.get(i);
+      if (!blob || pending.has(i) || typeof createImageBitmap !== "function") return null;
+      pending.add(i);
+      const g = gen;
+      createImageBitmap(blob, { resizeWidth: canvas.width, resizeHeight: canvas.height, resizeQuality: "high" }).then(
+        (b) => {
+          if (g === gen && !disposed) bitmaps.set(i, b);
+          else b.close();
+          pending.delete(i);
+        },
+        () => pending.delete(i),
+      );
+      return null;
+    };
 
     const frame = (now: number) => {
       raf = 0;
       if (!visible) return;
       raf = requestAnimationFrame(frame);
-      if (now - last < 1000 / FPS) return;
+      if (now - last < 1000 / FPS || isScrolling()) return;
       last = now;
       // The FrameSet spans the whole reveal but only the turntable range is loaded.
-      if (frames.loaded < indices.length) return;
       // Sine swing from the rest frame toward FIRST and back: always eased, never a hard turn.
       const phase = ((now - t0) % PERIOD) / PERIOD;
       const pos = REVEAL_REST - SPAN * (0.5 - 0.5 * Math.cos(phase * Math.PI * 2));
       const a = Math.floor(pos);
       const b = Math.min(REVEAL_REST, a + 1);
       const f = pos - a;
-      const ia = frames.get(a);
-      const ib = frames.get(b);
-      if (!ia || !ib) return;
-      fitCanvas(canvas);
+      // Warm the next frames a little ahead, one per tick.
+      for (let k = 0; k <= SPAN; k++) if (!bitmaps.has(FIRST + k)) { bitmap(FIRST + k); break; }
+      const ia = bitmap(a);
+      const ib = f > 0.02 ? bitmap(b) : ia;
+      if (!ia || !ib) return; // keep the last picture until both are ready
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = 1;
       ctx.drawImage(ia, 0, 0, canvas.width, canvas.height);
@@ -72,7 +131,7 @@ export function Mini() {
 
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting) frames.load([REVEAL_REST, ...indices.slice(0, -1).reverse()], 4);
+        if (e.isIntersecting) loadAll();
         const v = e.intersectionRatio > 0 && e.isIntersecting;
         if (v && !visible) {
           // Resume where we paused, so the swing never jumps.
@@ -89,11 +148,18 @@ export function Mini() {
       { threshold: 0 },
     );
     io.observe(root);
+    size();
+    const ro = new ResizeObserver(size);
+    ro.observe(canvas);
 
     return () => {
+      disposed = true;
       io.disconnect();
+      ro.disconnect();
       cancelAnimationFrame(raf);
-      frames.dispose();
+      blobs.clear();
+      bitmaps.forEach((bm) => bm.close());
+      bitmaps.clear();
     };
   }, []);
 

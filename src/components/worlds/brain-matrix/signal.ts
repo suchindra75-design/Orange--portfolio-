@@ -1,3 +1,4 @@
+import { isScrolling } from "@/lib/scroll";
 /**
  * Brain Matrix world: synthetic signals and canvas plumbing.
  *
@@ -138,7 +139,7 @@ export function runCanvas(
 
   const tick = (now: number) => {
     raf = requestAnimationFrame(tick);
-    if (now - lastDraw < frameMs - 2) return;
+    if (now - lastDraw < frameMs - 2 || isScrolling()) return;
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
     lastDraw = now;

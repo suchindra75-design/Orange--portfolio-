@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isScrolling } from "@/lib/scroll";
 
 /**
  * A 2D canvas loop that only runs while the canvas is on screen (DESIGN.md §5):
@@ -40,7 +41,7 @@ export function useCanvasLoop(draw: (f: Frame) => void, fps = 30) {
     const tick = (now: number) => {
       raf = 0;
       if (!visible || mq.matches) return;
-      if (now - last >= 1000 / fpsRef.current - 2) {
+      if (now - last >= 1000 / fpsRef.current - 2 && !isScrolling()) {
         last = now;
         paint(now);
       }

@@ -909,13 +909,17 @@ html:active-view-transition-type(open-project)::view-transition-new(root) {
   aspect-ratio: 2000 / 560;
   translate: -50% 0;
 }
-/* The crowd flows outward from the main character as the footer scrolls in (--flow 1 → 0).
-   Each person is a composited layer, so this moves pixels instead of repainting the drawing. */
+/* The crowd flows outward from the main character as the footer scrolls in (Crowd.tsx writes
+   each person's transform directly, so no CSS variable restyles the whole drawing). While the
+   crowd is on screen each person is a composited layer, so the flow moves pixels instead of
+   repainting; off screen the layers are dropped, so they cost nothing elsewhere on the page. */
 .crowd-person {
   position: absolute;
   display: block;
+}
+.crowd[data-live] .crowd-person,
+.crowd[data-live] [data-depth] {
   will-change: transform;
-  transform: translateX(calc(var(--flow, 0) * var(--dx, 0%)));
 }
 /* The footer's tiny spider: hover the strand and it climbs out of sight. */
 .crowd-spider {

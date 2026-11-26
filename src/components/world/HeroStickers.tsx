@@ -370,7 +370,7 @@ export function HeroStickers({ hero }: { hero: RefObject<HTMLElement | null> }) 
       <Canvas
         flat
         frameloop={frameloop}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
         camera={{ fov: 30 }}
         gl={{ alpha: true, antialias: true, powerPreference: "low-power" }}
         style={{ pointerEvents: "none" }}

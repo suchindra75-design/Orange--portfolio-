@@ -62,3 +62,14 @@ export function focusSection(id: string) {
   if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
   el.focus({ preventScroll: true });
 }
+
+/**
+ * True while the page is scrolling (and for a moment after). Decorative loops (the project cards'
+ * canvases) skip their redraws while it is true, so scrolling gets the whole frame budget; they
+ * pick up again as soon as the page settles. One passive listener for the whole app.
+ */
+let lastScroll = -1e9;
+if (typeof window !== "undefined") {
+  window.addEventListener("scroll", () => (lastScroll = performance.now()), { passive: true, capture: true });
+}
+export const isScrolling = () => performance.now() - lastScroll < 150;
