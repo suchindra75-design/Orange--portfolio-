@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import NextImage from "next/image";
 import { character, type CharacterFrame } from "@/content/character";
 import { prefersReducedMotion } from "@/lib/hooks";
 
@@ -207,7 +208,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
     const hero = el.closest("section") ?? document.body;
     const onTouch = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
-      if (!frames.length) loadFrames();
+      loadFrames(true);
       window.clearTimeout(release);
       pointer = { x: e.clientX, y: e.clientY };
       lastInput = performance.now();
@@ -221,17 +222,32 @@ export function HeroCharacter({ alt }: { alt: string }) {
 
     // --- loading -----------------------------------------------------------------------------
     let framesRequested = false;
-    const loadFrames = () => {
+    let urgent = false; // a finger is on the hero: stop waiting for idle time
+    let startTimer = 0;
+    const idle = (fn: () => void) =>
+      urgent ? window.setTimeout(fn, 0) : typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(fn, { timeout: 600 }) : window.setTimeout(fn, 50);
+    const loadFrames = (now = false) => {
+      if (now) urgent = true;
       if (framesRequested) return;
       framesRequested = true;
-      // Preload every direction; each one joins the choice as soon as it has decoded.
-      character.frames.forEach((f) =>
+      // A few at a time, in idle time, in an order that covers the whole circle early
+      // (every 32nd, then every 16th, every 8th...). Each frame joins the choice once decoded.
+      const order: number[] = [];
+      for (let step = 32; step >= 1; step /= 2)
+        for (let i = 0; i < character.frames.length; i += step) if (!order.includes(i)) order.push(i);
+      let next = 0;
+      const pump = () => {
+        if (!alive || next >= order.length) return;
+        const f = character.frames[order[next++]];
         load(f.src).then((img) => {
-          if (!img || !alive) return;
-          const a = (f.angle * Math.PI) / 180;
-          frames.push({ ...f, img, x: f.mag * Math.cos(a), y: f.mag * Math.sin(a) });
-        }),
-      );
+          if (img && alive) {
+            const a = (f.angle * Math.PI) / 180;
+            frames.push({ ...f, img, x: f.mag * Math.cos(a), y: f.mag * Math.sin(a) });
+          }
+          idle(pump);
+        });
+      };
+      for (let k = 0; k < 4; k++) idle(pump);
     };
 
     load(character.center).then((img) => {
@@ -243,11 +259,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
         if (alive && b.every(Boolean)) blink = b as HTMLImageElement[];
       });
       // Desktop with a mouse: preload all directions once the page has settled.
-      if (fine) {
-        const go = () => loadFrames();
-        if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(go, { timeout: 1500 });
-        else window.setTimeout(go, 400);
-      }
+      if (fine) startTimer = window.setTimeout(() => loadFrames(), 1200);
       kick();
     });
 
@@ -278,6 +290,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
       cancelAnimationFrame(raf);
       window.clearTimeout(sleeper);
       window.clearTimeout(release);
+      window.clearTimeout(startTimer);
       ro.disconnect();
       io.disconnect();
       window.removeEventListener("pointermove", onMove);
@@ -293,9 +306,9 @@ export function HeroCharacter({ alt }: { alt: string }) {
   return (
     <div ref={box} className="hero-character relative h-full w-full overflow-hidden" style={{ background: character.bg.edge }}>
       {/* The centre frame, from the first paint (also what reduced motion and no-JS see). */}
-      {/* A plain img: the canvas draws this same file, so next/image would download it twice. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={character.center} alt={alt} width={character.width} height={character.height} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover object-bottom" />
+      {/* unoptimized: the canvas draws this very file, so it must not be re-encoded under another URL.
+          priority: it is the hero's main image, so it gets a preload tag in the head. */}
+      <NextImage src={character.center} alt={alt} fill priority unoptimized sizes="(max-width: 768px) 90vw, 40vw" className="object-cover object-bottom" />
       <canvas ref={canvas} aria-hidden="true" className="absolute inset-0 h-full w-full" />
     </div>
   );

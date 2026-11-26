@@ -98,7 +98,7 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 
 - **Rendering:** nothing animates off screen. Gate every rAF and canvas loop with an IntersectionObserver.
 - **Canvas:** 2D canvases cap DPR at 1.5 and redraw only what changes. The hero character draws only when its frame changes and sleeps between blinks.
-- **Hero character frames:** the centre frame loads with the page (about 8 KB) and the two blink frames follow it. The 64 direction frames (about 490 KB) preload on idle only with a mouse; phones fetch them on the first touch of the hero; reduced motion fetches nothing but the centre frame.
+- **Hero character frames:** the centre frame loads with the page (about 8 KB) and the two blink frames follow it. The 64 direction frames (about 490 KB) preload only with a mouse, from 1.2 s, four at a time in idle time, in an order that covers the whole circle first; phones fetch them on the first touch of the hero; reduced motion fetches nothing but the centre frame.
 - **WebGL:** only through a `Stage` (`world/Stage.tsx` via `world/stages.tsx`), or on the home hero through `world/HeroStickers.tsx`. Both render on demand, stop off screen and dispose on unmount. At most one per page.
 - **No visible load:** a Stage shows its poster (`world/Poster.tsx`, a still render of the scene at its first camera position, desktop and phone WebP in `public/work/<slug>/`) while three.js loads, and the canvas fades in over it. If a scene changes, re-render its posters.
 - **Hero stickers 3D** load only after the intro, on idle, and only with a mouse, a screen ≥ 768px wide, motion allowed and no Save-Data. Phones never download three.js on the home page. That canvas allows DPR 2 (three small meshes, text must stay sharp).
