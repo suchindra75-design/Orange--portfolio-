@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type RefObject, type SVGProps } from "react";
 
 /**
- * RAYA HOME — the 2D drawing shared by the Mini, the hero and the no-WebGL demo fallback.
+ * ESP32 HOME AUTOMATION — the 2D drawing shared by the Mini, the hero and the no-WebGL demo fallback.
  *
  * An architect's section through a small two-storey house at dusk: the cut walls and slabs are
  * solid, the rooms are open to view, and a hairline of verdigris wiring runs inside the slabs
@@ -425,9 +425,9 @@ export function House({ lit, tv, fan, caption, captionState = "idle", framing = 
         {caption !== undefined && (
           <g transform="translate(640 150)">
             <text x="0" y="0" fill={C.verdigris} style={{ fontFamily: "var(--font-mono)", fontSize: 15, letterSpacing: "0.14em" }}>
-              RAYA ›{captionState === "sent" ? " SENT" : ""}
+              SAY ›{captionState === "sent" ? " SENT" : ""}
             </text>
-            <text x="0" y="40" fill={C.gold} style={{ fontFamily: "var(--font-display)", fontSize: 38, fontStyle: "italic", fontWeight: 300, letterSpacing: "-0.01em" }}>
+            <text x="0" y="40" fill={C.gold} style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 500, letterSpacing: "-0.01em" }}>
               {caption ? `“${caption}${captionState === "typing" ? "" : "”"}` : ""}
               {captionState === "typing" && <tspan fill={C.apricot}>▍</tspan>}
             </text>

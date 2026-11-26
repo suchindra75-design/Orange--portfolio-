@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     return [
       ...Object.entries(legacySlugs).map(([from, to]) => ({ source: `/work/${from}`, destination: `/projects/${to}`, permanent: true })),
       { source: "/work", destination: "/projects", permanent: true },
+      // "RAYA Home" became the ESP32 Home Automation System (owner's decision, DECISIONS.md).
+      { source: "/projects/raya-smart-home", destination: "/projects/esp32-home-automation", permanent: true },
+      { source: "/work/raya-smart-home", destination: "/projects/esp32-home-automation", permanent: true },
     ];
   },
   partialPrefetching: true,

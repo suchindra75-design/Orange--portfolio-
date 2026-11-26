@@ -83,7 +83,7 @@ export function ProjectPage({ project }: { project: Project }) {
             {project.family && <span className="opacity-70">· {project.family}</span>}
           </p>
           <ViewTransition name={`title-${project.slug}`} share="morph" default="none">
-            <h1 id="project-title" className="t-name w-fit max-w-full text-[clamp(3.2rem,12vw,13rem)] tracking-[-0.05em]">
+            <h1 id="project-title" className={`t-name w-fit max-w-full tracking-[-0.05em] ${project.title.length > 14 ? "text-[clamp(2.8rem,7.2vw,8rem)]" : "text-[clamp(3.2rem,12vw,13rem)]"}`}>
               {project.title}
             </h1>
           </ViewTransition>

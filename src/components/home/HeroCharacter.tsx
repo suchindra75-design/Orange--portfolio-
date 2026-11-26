@@ -205,6 +205,10 @@ export function HeroCharacter({ alt }: { alt: string }) {
       lastInput = performance.now();
       kick();
     };
+    // The page moving under a still mouse changes where the mouse is relative to his face.
+    const onScroll = () => {
+      if (pointer) kick();
+    };
     const hero = el.closest("section") ?? document.body;
     const onTouch = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
@@ -278,6 +282,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
     });
     io.observe(el);
     window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave);
     window.addEventListener("blur", onLeave);
     hero.addEventListener("pointerdown", onTouch, { passive: true });
@@ -294,6 +299,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
       ro.disconnect();
       io.disconnect();
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("scroll", onScroll);
       document.documentElement.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("blur", onLeave);
       hero.removeEventListener("pointerdown", onTouch);

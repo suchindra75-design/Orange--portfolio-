@@ -14,7 +14,7 @@
 
 export type ProjectSlug =
   | "raya-assistant"
-  | "raya-smart-home"
+  | "esp32-home-automation"
   | "infinos-website"
   | "infinos-app"
   | "brain-matrix"
@@ -138,23 +138,22 @@ export const projects: Project[] = [
     world: { bg: "#17151A", ink: "#ECE8EE", muted: "#9C97A2", accent: "#FFB26B", accent2: "#C9C6CC", ground: "dark" },
   },
   {
-    slug: "raya-smart-home",
+    slug: "esp32-home-automation",
     index: "02",
     tier: "main",
-    title: "RAYA Home",
+    title: "ESP32 Home Automation System",
     subtitle: "Smart-home automation",
-    family: "RAYA",
     category: "Home automation · ESP32",
-    status: { label: "In development · concept demo", tone: "concept" },
+    status: { label: "Concept demo", tone: "concept" },
     role: "Design & development",
-    oneLine: "The RAYA idea pointed at the room: say “turn on the lights” and an ESP-based controller switches the appliance.",
+    oneLine: "Say “turn on the lights” and an ESP32 controller switches the appliance: the idea, shown as a concept demo.",
     hook: "One sentence instead of one app per device.",
     idea:
-      "Switching a light, a fan or a TV shouldn’t need a different app for each. A plain instruction, spoken or typed, should be enough: RAYA interprets it and sends a control signal to a microcontroller wired to the appliance.",
+      "Switching a light, a fan or a TV shouldn’t need a different app for each. A plain instruction, spoken or typed, should be enough: it is interpreted into a device and a state, and a control signal goes to a microcontroller wired to the appliance.",
     built: [
       "The instruction → interpretation → control signal → ESP controller → appliance flow that this page demonstrates.",
       "An ESP32 home-automation controller with a two-channel relay, written in Embedded C (a résumé project).",
-      "The link between the RAYA assistant and that controller is in development. The room on this page is an in-browser demonstration of the intended flow.",
+      "The language layer is a concept. The room on this page is an in-browser demonstration of the intended flow.",
     ],
     features: [
       { title: "Plain language in", body: "“Turn on the lights”, “switch off the fan”, “turn everything off”: one sentence, spoken or typed." },
@@ -163,13 +162,13 @@ export const projects: Project[] = [
       { title: "The appliance responds", body: "Relays switch the connected appliance. Several devices can change from one instruction." },
     ],
     screens: [],
-    stack: ["ESP32", "Embedded C", "Relay module", "RAYA (Python), link in development"],
+    stack: ["ESP32", "Embedded C", "Relay module"],
     links: [],
     notes: [
       "No firmware or device code for this is public yet, so nothing on this page talks to real hardware. The demo runs entirely in your browser.",
-      "The RAYA repository is the desktop assistant. It does not contain home-automation code.",
+      "This is a separate project from the RAYA assistant: no RAYA code links to it.",
     ],
-    eight: { what: "Plain-language control of lights, fans and TVs through an ESP-based controller.", did: "The instruction-to-appliance flow, and an ESP32 two-channel relay controller in Embedded C.", hard: "Turning loose language into a device and a state, reliably.", changed: "In development: the link between RAYA and the controller isn't public yet, so this page is a concept demo." },
+    eight: { what: "Plain-language control of lights, fans and TVs through an ESP-based controller.", did: "The instruction-to-appliance flow, and an ESP32 two-channel relay controller in Embedded C.", hard: "Turning loose language into a device and a state, reliably.", changed: "A concept: the language layer isn't built and no firmware is public, so this page is a concept demo." },
     numbers: [{ value: "1", label: "Sentence per command" }, { value: "2", label: "Relay channels (ESP32 build)" }],
     cover: null,
     world: { bg: "#1E1117", ink: "#F2E9DD", muted: "#A8968C", accent: "#FFD9A0", accent2: "#5FB8A0", ground: "dark" },

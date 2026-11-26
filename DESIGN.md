@@ -119,7 +119,7 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 - **RAYA:** credit MARK XLIX by FatihMakes.
 - **Brain Matrix:** research use only.
 - **SIMPLEIN:** pre-launch.
-- **Smart home:** concept demo.
+- **ESP32 Home Automation System** (was "RAYA Home"): concept demo, separate from RAYA (never a RAYA module).
 - **Privacy:** never publish phone numbers, emails other than the owner's public one, keys, real people's data, or identifiable bystanders.
 
 ## 7. World contract (`src/components/worlds/<slug>/index.tsx` exports `world: WorldParts`)

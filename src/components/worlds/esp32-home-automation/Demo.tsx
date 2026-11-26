@@ -5,7 +5,6 @@ import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion } from "@/lib/hooks";
 import { useWorld, world, type Devices } from "@/lib/store";
 import { RayaStage } from "@/components/world/stages";
-import { ProjectLink } from "@/components/chrome/Links";
 import { Label } from "@/components/project/ProjectPage";
 import { FRAMING_DEMO, House, ROOMS, allLit, blinkLed, sendPulse, useInView, type Room } from "./house";
 import { DEVICES, NAMES, SHORT, parse, type DeviceId } from "./parse";
@@ -435,13 +434,10 @@ export function Demo({ n }: WorldProps) {
               <div className="min-w-0 md:pb-1">
                 <span className="sim max-w-full whitespace-normal sm:whitespace-nowrap">Concept demo · simulation · no hardware connected</span>
                 <p className="t-label mt-2.5 normal-case tracking-[0.04em] text-bone/70">
-                  Runs in your browser: a small rule parser stands in for RAYA’s language understanding.
+                  Runs in your browser: a small rule parser stands in for the language understanding.
                 </p>
                 <p className="t-label mt-1.5 hidden normal-case tracking-[0.04em] text-bone/60 sm:block">
-                  The box {webgl ? "on the console" : "on the hall wall"} stands in for an ESP32 relay controller, like my résumé build (Embedded C, two-channel relay). No firmware is public.{" "}
-                  <ProjectLink href="/projects/raya-assistant" className="link-u whitespace-nowrap text-apricot">
-                    The assistant →
-                  </ProjectLink>
+                  The box {webgl ? "on the console" : "on the hall wall"} stands in for an ESP32 relay controller, like my résumé build (Embedded C, two-channel relay). No firmware is public.
                 </p>
               </div>
             </div>

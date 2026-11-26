@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 
 /**
  * Tiny shared store between the HTML demos and their 3D stage (no dependency).
- * The RAYA Home console flips devices; stages report WebGL support.
+ * The home-automation console flips devices; stages report WebGL support.
  */
 
 export type Devices = { lights: boolean; fan: boolean; tv: boolean };

@@ -13,7 +13,7 @@ import { P } from "./system/palette";
  * the live canvas fades in over it: the Active Theory rule, no visible load.
  */
 
-const RAYA_POSTER: StagePoster = { desktop: "/work/raya-smart-home/stage-poster.webp", mobile: "/work/raya-smart-home/stage-poster-mobile.webp" };
+const RAYA_POSTER: StagePoster = { desktop: "/work/esp32-home-automation/stage-poster.webp", mobile: "/work/esp32-home-automation/stage-poster-mobile.webp" };
 const SIMPLEIN_POSTER: StagePoster = { desktop: "/work/simplein-school/stage-poster.webp", mobile: "/work/simplein-school/stage-poster-mobile.webp" };
 
 export const RayaStage = dynamic(

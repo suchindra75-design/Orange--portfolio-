@@ -36,7 +36,7 @@ const words = (s: string) =>
 /** Simple synonyms per project, each grounded in that project's own entry (or the résumé). */
 const SYNONYMS: Record<ProjectSlug, string> = {
   "raya-assistant": "ai assistant voice jarvis gemini computer control desktop automation mac approval",
-  "raya-smart-home": "hardware esp esp32 iot home smart relay lights appliance embedded automation",
+  "esp32-home-automation": "hardware esp esp32 iot home smart relay lights appliance embedded automation",
   "infinos-website": "website site web 3d threejs blender product landing company bag",
   "infinos-app": "telemetry iot monitoring esp esp32 thingspeak hardware bag temperature dashboard app mobile flutter",
   "brain-matrix": "eeg brain biosignal bluetooth ble sleep mask hardware research mobile app",

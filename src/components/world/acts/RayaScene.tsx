@@ -15,10 +15,10 @@ import { LightCone, useShaftMaterial } from "../system/LightShaft";
 import { useQuality } from "../system/quality";
 
 /* ══════════════════════════════════════════════════════════════════════════
-   RAYA HOME — the demo room on /projects/raya-smart-home.
+   ESP32 HOME AUTOMATION — the demo room on /projects/esp32-home-automation.
    A tall living room at dusk. Low sun pours through a wall of glass; the
    room is beautiful before anything happens. A command typed in the HTML
-   layer (worlds/raya-smart-home/Demo.tsx) travels: instruction → interpretation → signal →
+   layer (worlds/esp32-home-automation/Demo.tsx) travels: instruction → interpretation → signal →
    the ESP-based controller on the console → a verdigris pulse along an
    inlaid run in the wall, ceiling or floor → the appliance acts (warm
    light, fan motion, screen glow). The appliance only responds when its
@@ -26,7 +26,7 @@ import { useQuality } from "../system/quality";
    ══════════════════════════════════════════════════════════════════════════ */
 
 const ORIGIN: [number, number, number] = [400, 0, 0];
-/** Time a control pulse takes from the controller to an appliance. Mirrored in worlds/raya-smart-home/Demo.tsx. */
+/** Time a control pulse takes from the controller to an appliance. Mirrored in worlds/esp32-home-automation/Demo.tsx. */
 const TRAVEL_MS = 950;
 
 // Room (local space). Interior: x −6…6, z −7…7, floor y 0, ceiling y H.

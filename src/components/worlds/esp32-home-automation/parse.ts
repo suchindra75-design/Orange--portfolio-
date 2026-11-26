@@ -1,7 +1,7 @@
 import type { Devices } from "@/lib/store";
 
 /**
- * Stand-in for RAYA's language understanding, for the in-browser demo only: a tiny rule parser
+ * Stand-in for the language understanding, for the in-browser demo only: a tiny rule parser
  * that finds the device(s) and the state in a plain sentence.
  */
 export type DeviceId = keyof Devices;
