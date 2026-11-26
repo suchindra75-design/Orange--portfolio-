@@ -35,7 +35,7 @@ export const site = {
     years: "2023–2027",
   },
   /** The deployed URL (canonical links, sitemap, share images): the Vercel production domain. */
-  url: "https://suchindra-portfolio.vercel.app",
+  url: "https://suchindra-denduluri.vercel.app",
   description:
     "Suchindra Denduluri builds software products, AI assistants, automation and hardware-connected apps: a voice assistant that acts on his computer, telemetry platforms, an EEG workstation and a multi-tenant school ERP.",
   /** AI-assisted development tools in daily use. */
