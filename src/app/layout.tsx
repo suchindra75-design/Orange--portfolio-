@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Doto, Fraunces, Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import { site } from "@/content/site";
 import { SmoothScroll } from "@/components/chrome/SmoothScroll";
 import { Nav } from "@/components/chrome/Nav";
@@ -8,11 +8,9 @@ import { Eggs } from "@/components/chrome/Eggs";
 import { Footer } from "@/components/home/Footer";
 import "./globals.css";
 
-const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], axes: ["opsz", "SOFT", "WONK"], style: ["normal", "italic"], display: "swap" });
-const interTight = Inter_Tight({ variable: "--font-inter-tight", subsets: ["latin"], weight: ["400", "500", "600", "800", "900"], display: "swap" });
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], display: "swap" });
+// Both fonts are SIL Open Font License 1.1 (free for commercial use). The site uses only these two.
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"], weight: "variable", axes: ["opsz"], display: "swap" });
-const doto = Doto({ variable: "--font-doto", subsets: ["latin"], weight: ["800", "900"], display: "swap" });
 
 const title = `${site.name} — ${site.role}`;
 
@@ -46,7 +44,7 @@ const bootScript = `(function(){document.documentElement.classList.add('js')})()
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${interTight.variable} ${jetbrains.variable} ${doto.variable} ${bricolage.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${jetbrains.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: bootScript }} />
       </head>

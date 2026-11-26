@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef } from "react";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { gsap, MOTION, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion } from "@/lib/hooks";
 import { scrollToTarget } from "@/lib/scroll";
 import { site } from "@/content/site";
@@ -33,20 +34,49 @@ function Sticker({ icon, children, className, rot }: { icon: keyof typeof ICONS;
  * The letters drop in, the photo pops up, the stickers slap on. Spider-sense: a brief tingle
  * beside his head when the cursor comes close.
  */
+/** The 3D stickers (world/HeroStickers.tsx): their own chunk, fetched only when asked for. */
+const HeroStickers = dynamic(() => import("@/components/world/HeroStickers").then((m) => m.HeroStickers), { ssr: false });
+
+/**
+ * Whether to load the 3D stickers, and when: only where they pay off (a mouse, a screen at least
+ * tablet-wide, motion allowed, no Save-Data), and only after the intro has played, when the
+ * browser is idle, so three.js never competes with the first paint.
+ */
+function useLoad3DStickers() {
+  const [load, setLoad] = useState(false);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 768px)").matches) return;
+    if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) return;
+    let idle = 0;
+    const go = () => setLoad(true);
+    const t = window.setTimeout(() => {
+      idle = typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(go, { timeout: 2500 }) : window.setTimeout(go, 200);
+    }, 1600);
+    return () => {
+      window.clearTimeout(t);
+      if (typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idle);
+      window.clearTimeout(idle);
+    };
+  }, []);
+  return load;
+}
+
 export function Hero() {
   const root = useRef<HTMLElement>(null);
   const fig = useRef<HTMLDivElement>(null);
+  const load3D = useLoad3DStickers();
 
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
-      const tl = gsap.timeline({ defaults: { ease: "back.out(1.6)" } });
+      const tl = gsap.timeline({ defaults: { ease: MOTION.settle } });
       tl.from("[data-letter]", { yPercent: 110, duration: 0.7, stagger: 0.045 }, 0.1)
         .from(fig.current, { yPercent: 18, scale: 0.92, autoAlpha: 0, duration: 0.8, ease: "back.out(1.3)" }, 0.35)
         .from("[data-sticker]", { scale: 0.4, autoAlpha: 0, duration: 0.55, stagger: 0.09 }, 0.75)
         .from("[data-lead]", { y: 24, autoAlpha: 0, duration: 0.6, ease: "power3.out" }, 0.8);
       // Leaving: the stickers drift a little faster than the page (a touch of depth, nothing more).
-      gsap.to("[data-sticker]", { yPercent: -60, ease: "none", scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: 0.6 } });
+      gsap.to("[data-sticker]", { yPercent: -60, ease: "none", scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: MOTION.scrub } });
     },
     { scope: root },
   );
@@ -120,6 +150,8 @@ export function Hero() {
       <Sticker icon="wave" rot={-4} className="right-[14%] top-[62%] max-md:right-[3%] max-md:top-[56%]">
         EEG over Bluetooth
       </Sticker>
+
+      {load3D && <HeroStickers hero={root} />}
 
       {/* The line */}
       <div data-lead className="absolute bottom-[clamp(1.5rem,6svh,3.5rem)] left-[var(--gutter)] z-[5] max-w-[24rem] max-md:hidden">

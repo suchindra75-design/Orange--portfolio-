@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { gsap, MOTION, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion } from "@/lib/hooks";
 import { site } from "@/content/site";
 
@@ -20,7 +20,7 @@ export function HowIBuild() {
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
-      const st = { trigger: root.current, start: "top 75%", end: "bottom 60%", scrub: 0.6 };
+      const st = { trigger: root.current, start: "top 75%", end: "bottom 60%", scrub: MOTION.scrub };
       gsap.fromTo("[data-line]", { scaleX: 0 }, { scaleX: 1, ease: "none", scrollTrigger: st });
       gsap.fromTo("[data-spark]", { left: "0%" }, { left: "100%", ease: "none", scrollTrigger: st });
       gsap.from("[data-step]", { opacity: 0.15, stagger: 0.12, ease: "none", scrollTrigger: st });

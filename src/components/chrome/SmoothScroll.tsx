@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Lenis from "lenis";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
-import { getLenis, setLenis } from "@/lib/scroll";
+import { getLenis, releaseNavigationHold, setLenis } from "@/lib/scroll";
 
 /**
  * Lenis drives inertial scrolling; GSAP's ticker drives Lenis so ScrollTrigger
@@ -24,6 +24,7 @@ export function SmoothScroll() {
           lenis.resize();
           lenis.scrollTo(window.scrollY, { immediate: true, force: true });
         }
+        releaseNavigationHold();
         ScrollTrigger.refresh();
       });
     });

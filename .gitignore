@@ -53,3 +53,6 @@ next-env.d.ts
 /docs/
 /tools/
 /art/
+
+# Local Claude Code launch config
+/.claude/

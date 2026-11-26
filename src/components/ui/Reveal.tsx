@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type ElementType, type ReactNode } from "react";
-import { gsap, SplitText, useGSAP } from "@/lib/gsap";
+import { gsap, MOTION, SplitText, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion } from "@/lib/hooks";
 
 /** Masked line-by-line rise, triggered once when the block enters view. */
@@ -10,7 +10,7 @@ export function Reveal({
   children,
   className,
   delay = 0,
-  start = "top 88%",
+  start = MOTION.enter,
   id,
 }: {
   as?: ElementType;
@@ -34,7 +34,7 @@ export function Reveal({
             yPercent: 115,
             duration: 1.1,
             stagger: 0.09,
-            ease: "expo.out",
+            ease: MOTION.rise,
             delay,
             scrollTrigger: { trigger: el, start, once: true },
           });

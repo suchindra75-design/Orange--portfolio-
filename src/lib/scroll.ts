@@ -10,6 +10,27 @@ export const setLenis = (l: Lenis | null) => {
 };
 export const getLenis = () => instance;
 
+/**
+ * Smooth scroll holds still while a page transition plays, so the old page's inertia never drags
+ * the new page (Lenis and the View Transition would otherwise fight over the scroll position).
+ * SmoothScroll releases the hold on the next route; a timer releases it if no route change comes.
+ */
+let navHold = false;
+let navTimer = 0;
+export function holdForNavigation() {
+  if (!instance || instance.isStopped) return;
+  navHold = true;
+  instance.stop();
+  window.clearTimeout(navTimer);
+  navTimer = window.setTimeout(releaseNavigationHold, 1500);
+}
+export function releaseNavigationHold() {
+  window.clearTimeout(navTimer);
+  if (!navHold) return;
+  navHold = false;
+  instance?.start();
+}
+
 type Target = string | number | HTMLElement;
 
 export function scrollToTarget(target: Target, opts: { immediate?: boolean; duration?: number; offset?: number } = {}) {

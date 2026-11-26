@@ -2,18 +2,20 @@ import { ViewTransition } from "react";
 import type { Project, Tone } from "@/content/projects";
 import { worldFor } from "@/components/worlds/registry";
 import { ProjectLink } from "@/components/chrome/Links";
+import { Settle } from "./Settle";
 
 const TONE: Record<Tone, string> = { live: "#2FA36B", dev: "#FF5A1F", concept: "#E8A317", prelaunch: "#B5573A", built: "#8A7A6C" };
 const TILT = [-1.6, 1.2, -1, 1.4, -1.3, 1];
 
 /**
  * Projects as chunky, slightly tilted cards (bold-colour style). Each card carries the project's
- * live preview, its name, one line and its status; hover straightens and lifts it. The preview and
+ * live preview, its name, one line and its status; hover straightens and lifts it, and cards below
+ * the fold settle onto their tilt as they scroll in (Settle). The preview and
  * title morph into the project page when it opens.
  */
 export function CardGrid({ projects }: { projects: Project[] }) {
   return (
-    <ul className="grid gap-x-7 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+    <Settle className="grid gap-x-7 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
       {projects.map((p, i) => {
         const w = worldFor(p.slug);
         return (
@@ -45,6 +47,6 @@ export function CardGrid({ projects }: { projects: Project[] }) {
           </li>
         );
       })}
-    </ul>
+    </Settle>
   );
 }

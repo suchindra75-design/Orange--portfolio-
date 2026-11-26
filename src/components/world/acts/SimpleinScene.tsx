@@ -121,7 +121,8 @@ const fontVar = (name: string, fallback: string) => {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v ? `${v}, ${fallback}` : fallback;
 };
-const fonts = () => ({ mono: fontVar("--font-jetbrains", "ui-monospace, monospace"), serif: fontVar("--font-fraunces", "Georgia, serif") });
+// The display face is the site's Bricolage Grotesque (no italic: emphasis is weight, as in DESIGN.md).
+const fonts = () => ({ mono: fontVar("--font-jetbrains", "ui-monospace, monospace"), display: fontVar("--font-bricolage", "ui-sans-serif, system-ui, sans-serif") });
 
 /** Letter-spaced text, drawn glyph by glyph (canvas letterSpacing isn't everywhere). */
 function tracked(g: CanvasRenderingContext2D, text: string, x: number, y: number, track: number, align: "left" | "center" | "right") {
@@ -186,7 +187,7 @@ function paintWing(k: number, px: number) {
   const n = role.modules.length;
   const L = (W1 - W0) / n;
   return (g: CanvasRenderingContext2D) => {
-    const { mono, serif } = fonts();
+    const { mono, display } = fonts();
     g.setTransform(px / WING_PX, 0, 0, px / WING_PX, 0, 0);
     const cx = 5 * WING_PX;
     role.modules.forEach((m, i) => {
@@ -201,7 +202,7 @@ function paintWing(k: number, px: number) {
       engrave(g, () => tracked(g, label, cx, y - 34, 3, "center"), 1, 2);
     });
     // The wing's name, cut into the plinth beyond its portway.
-    g.font = `${k === 0 ? "" : "italic "}300 138px ${serif}`;
+    g.font = `${k === 0 ? 300 : 600} 138px ${display}`;
     g.textAlign = "center";
     engrave(g, () => g.fillText(role.name, cx, (26.9 - W0) * WING_PX), 0.85, 3);
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -527,10 +528,10 @@ export function SimpleinScene() {
     });
     const lids = ["School A", "School B"].map((name) =>
       canvasTexture(300, 500, (g) => {
-        const { mono, serif } = fonts();
+        const { mono, display } = fonts();
         g.font = `500 22px ${mono}`;
         engrave(g, () => tracked(g, "TENANT", 150, 205, 5, "center"), 0.6);
-        g.font = `italic 300 64px ${serif}`;
+        g.font = `500 64px ${display}`;
         g.textAlign = "center";
         engrave(g, () => g.fillText(name, 150, 280), 0.9, 2);
       }),
@@ -552,8 +553,8 @@ export function SimpleinScene() {
   // Redraw the engraving once the page's fonts are ready (canvas text needs them loaded).
   useEffect(() => {
     let alive = true;
-    const { mono, serif } = fonts();
-    Promise.all([document.fonts.load(`500 30px ${mono}`), document.fonts.load(`italic 300 60px ${serif}`), document.fonts.load(`300 60px ${serif}`)])
+    const { mono, display } = fonts();
+    Promise.all([document.fonts.load(`500 30px ${mono}`), document.fonts.load(`300 60px ${display}`), document.fonts.load(`600 60px ${display}`)])
       .catch(() => undefined)
       .then(() => {
         if (!alive) return;

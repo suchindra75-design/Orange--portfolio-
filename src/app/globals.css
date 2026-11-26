@@ -1,11 +1,10 @@
 @import "tailwindcss";
 @import "lenis/dist/lenis.css";
 
-/* ══════════════════════ THE CARET — "Carbon & Signal" ══════════════════════
-   See DESIGN.md. Carbon stage, paper type, one restrained chartreuse Signal (the caret, the
-   highlighter, live states). Two Spider-Man accents, used almost never: web red for
-   spider-sense, deep blue for the core of a project opening. The project worlds keep their
-   own tints (apricot, verdigris, terracotta…) inside their pages. */
+/* ══════════════════════ v7 "BOLD COLOUR" ══════════════════════
+   See DESIGN.md. Orange pop, cream and ink; stickers, chunky cards and pills. Token names are
+   kept from v6 so every page re-themes. The project worlds keep their own tints (apricot,
+   verdigris, terracotta…) inside their pages. */
 
 @theme {
   /* Bold colour: orange, cream, ink (token names kept from v6 so every page re-themes) */
@@ -47,9 +46,7 @@
 
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
-  --font-dot: var(--font-doto), var(--font-jetbrains), monospace;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
@@ -179,19 +176,12 @@ body {
     font-size: clamp(0.98rem, 1.05vw, 1.0625rem);
     line-height: 1.65;
   }
-  /* The one word that matters: Fraunces italic, a little wonky. */
-  .serif-i,
+  /* The one word that matters: weight, never italic (Bricolage has no italic). */
   .t-italic {
     font-family: var(--font-sans);
     font-style: normal;
     font-weight: 500;
     letter-spacing: -0.02em;
-  }
-  .t-hand {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 300;
-    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
   }
 
   .section {
@@ -351,13 +341,6 @@ body {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }
-  .t-dot {
-    font-family: var(--font-dot);
-    font-weight: 900;
-    letter-spacing: 0.05em;
-    line-height: 1.02;
-    text-transform: uppercase;
-  }
   .t-name {
     font-family: var(--font-sans);
     font-weight: 800;
@@ -490,6 +473,20 @@ body {
   rotate: calc(var(--rot, 0deg) * -1);
   translate: 0 -3px;
 }
+/* Once the 3D stickers have drawn (world/HeroStickers.tsx) they take over the look; the HTML
+   stickers stay in place, transparent, as the text and the hit areas. */
+.hero-stickers-3d {
+  opacity: 0;
+}
+.hero-stickers-3d[data-shown] {
+  opacity: 1;
+}
+[data-stickers3d] [data-sticker] {
+  opacity: 0 !important;
+}
+[data-stickers3d] .hero-sticker:hover {
+  rotate: var(--rot, 0deg);
+}
 
 /* Six worlds: the click "thwip" and the preview swinging up on its new strand. */
 .thwip {
@@ -520,6 +517,22 @@ body {
 }
 .stage canvas {
   display: block;
+}
+/* The poster sits under the canvas; the canvas fades in once it has drawn (data-drawn). */
+.stage__poster,
+.stage__poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.stage__view > div:has(canvas) {
+  opacity: 0;
+  transition: opacity 0.45s var(--ease-out-expo);
+}
+.stage__view[data-drawn] > div:has(> canvas) {
+  opacity: 1;
 }
 
 /* Act sections float over their stage and let pointer events through, except controls. */
@@ -692,9 +705,10 @@ body {
 }
 
 /* ══════════════════════ View transitions ══════════════════════
-   Opening a project: the old page recedes into the dark while the new one opens through a
-   vertical slit of light that widens from where you clicked (--ap-x), the wall's opening reused.
-   Named pairs (a project's visual and title) morph between the two pages. */
+   Opening a project (Bold Colour "slap and settle"): the old page drops away onto the orange
+   ground, and the new page slaps up from below like a chunky card (rounded top, 2px ink edge, a
+   hard ink lip) tilted toward where you clicked (--ap-x, --ap-tilt), overshoots a hair and lands
+   flat. The project's named preview and title morph across on top. No blue, no slit of light. */
 
 ::view-transition {
   pointer-events: none;
@@ -714,30 +728,71 @@ body {
   animation: none;
 }
 
-::view-transition-new(.aperture) {
-  animation: aperture 0.78s var(--ease-cine) both;
+/* The ground everything lands on while a project opens. */
+html:active-view-transition-type(open-project)::view-transition {
+  background: var(--color-pop);
 }
-::view-transition-old(.recede) {
-  animation: recede 0.78s var(--ease-cine) both;
+/* The rest of the page (footer, background) leaves with the old page and arrives with the new. */
+html:active-view-transition-type(open-project)::view-transition-old(root) {
+  animation: drop-away 0.42s cubic-bezier(0.5, 0, 0.75, 0) both;
 }
-@keyframes aperture {
-  0% {
-    clip-path: inset(0 calc(100% - var(--ap-x, 50%) - 2px) 0 calc(var(--ap-x, 50%) - 2px));
-    filter: brightness(1.7);
+html:active-view-transition-type(open-project)::view-transition-new(root) {
+  animation: wait-for-sheet 0.8s steps(1, end) both;
+}
+
+::view-transition-old(.drop) {
+  animation: drop-away 0.42s cubic-bezier(0.5, 0, 0.75, 0) both;
+}
+::view-transition-group(.sheet) {
+  transform-origin: var(--ap-x, 50%) 0;
+  overflow: clip;
+  animation: sheet-in 0.8s both;
+}
+::view-transition-new(.sheet) {
+  animation: none;
+}
+@keyframes drop-away {
+  to {
+    translate: 0 7vh;
+    scale: 0.92;
+    opacity: 0.55;
   }
-  40% {
-    filter: brightness(1.15);
+}
+@keyframes wait-for-sheet {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* translate/rotate (not transform) so the browser's own positioning of the group is untouched. */
+@keyframes sheet-in {
+  0% {
+    translate: 0 102vh;
+    rotate: var(--ap-tilt, 0deg);
+    border-radius: 40px 40px 0 0;
+    box-shadow:
+      0 0 0 2px var(--color-ink),
+      0 -12px 0 0 var(--color-ink);
+    animation-timing-function: cubic-bezier(0.2, 0.75, 0.3, 1);
+  }
+  72% {
+    translate: 0 -1.2vh;
+    rotate: calc(var(--ap-tilt, 0deg) * -0.12);
+    border-radius: 40px 40px 0 0;
+    box-shadow:
+      0 0 0 2px var(--color-ink),
+      0 -10px 0 0 var(--color-ink);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.3, 1);
   }
   100% {
-    clip-path: inset(0 0 0 0);
-    filter: none;
-  }
-}
-/* The page you leave sinks into a night-blue cast (the one place deep blue appears). */
-@keyframes recede {
-  to {
-    transform: scale(0.965);
-    filter: brightness(0.32) sepia(1) hue-rotate(190deg) saturate(2.2);
+    translate: 0 0;
+    rotate: 0deg;
+    border-radius: 0;
+    box-shadow:
+      0 0 0 0 var(--color-ink),
+      0 0 0 0 var(--color-ink);
   }
 }
 
@@ -824,9 +879,30 @@ body {
   transition: transform 0.25s ease-out;
 }
 
-/* The crowd flows outward from the main character as the footer scrolls in (--flow 1 → 0). */
-.crowd .crowd-flow {
-  transform: translateX(calc(var(--flow, 0) * var(--dx, 0px)));
+/* Each crowd layer lays its people out in the drawing's 2000×560 units, scaled to cover the
+   panorama and anchored bottom-centre (the old SVG's "xMidYMax slice"). */
+.crowd {
+  container-type: inline-size;
+}
+.crowd-layer {
+  position: absolute;
+  inset: 0;
+}
+.crowd-scene {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  height: max(100%, 28cqw);
+  aspect-ratio: 2000 / 560;
+  translate: -50% 0;
+}
+/* The crowd flows outward from the main character as the footer scrolls in (--flow 1 → 0).
+   Each person is a composited layer, so this moves pixels instead of repainting the drawing. */
+.crowd-person {
+  position: absolute;
+  display: block;
+  will-change: transform;
+  transform: translateX(calc(var(--flow, 0) * var(--dx, 0%)));
 }
 /* The footer's tiny spider: hover the strand and it climbs out of sight. */
 .crowd-spider {

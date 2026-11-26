@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { getLenis } from "@/lib/scroll";
+import { markOrigin } from "./Links";
 import { search, type JumpGroup, type JumpItem } from "./jump/search";
 
 /** True when a key press belongs to a text field (so "/" types a slash there). */
@@ -192,8 +193,8 @@ function Palette({
     }
     onClose(false);
     if (item.kind === "project") {
-      // The aperture opens from the middle (ProjectLink uses the click position).
-      document.documentElement.style.setProperty("--ap-x", "50%");
+      // The sheet rises straight from the middle (ProjectLink uses the click position).
+      markOrigin(window.innerWidth / 2);
       router.push(item.href, { transitionTypes: ["open-project"] });
     } else {
       router.push(item.href, { transitionTypes: ["page"] });

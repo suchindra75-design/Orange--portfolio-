@@ -4,8 +4,8 @@
 
 **The signature marks:**
 - **The giant name:** `.t-name` (Bricolage Grotesque 800, tight tracking) for names and titles. SUCHINDRA is always whole, never split.
-- **Stickers:** `.sticker` (cream chip, 2px ink border, hard ink shadow), `.hero-sticker` (tilted with `--rot`, wiggles on hover).
-- **Chunky cards:** `.chunky` (white, 2px ink border, radius 22, `0 12px 0` ink shadow) with `.card-tilt` (`--tilt`, straightens and lifts on hover). Inside project worlds, `.chunky-w` takes the world's own colours.
+- **Stickers:** `.sticker` (cream chip, 2px ink border, hard ink shadow), `.hero-sticker` (tilted with `--rot`, wiggles on hover). On desktop with a mouse, the three hero stickers become real 3D vinyl stickers after the intro (`world/HeroStickers.tsx`): same face, an ink body, flat stepped shading, tilting toward the cursor and wobbling when touched. The HTML stickers stay underneath as the text and hit areas.
+- **Chunky cards:** `.chunky` (white, 2px ink border, radius 22, `0 12px 0` ink shadow) with `.card-tilt` (`--tilt`, straightens and lifts on hover). Cards below the fold settle onto their tilt as they scroll in (`project/Settle.tsx`). Inside project worlds, `.chunky-w` takes the world's own colours.
 - **Pills:** `.pill-ink` for actions, `.nav-pill` in the nav (ink on light grounds, cream over dark ones).
 - **Marker:** `.hl`, an orange marker behind one word.
 - **Photo cut-out:** `.sticker-cut` (cream outline drawn around a transparent PNG).
@@ -72,15 +72,18 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 
 - **Bricolage Grotesque:** display and body (variable, with the optical-size axis). Display 800, body 400–600. No italics.
 - **JetBrains Mono:** small uppercase labels (`.t-label`).
+- **Only these two fonts load** (both SIL Open Font License 1.1, via `next/font/google`). Don't add a font without checking its licence; never ship a trial or demo font. Canvas and 3D text uses the same two (read from `--font-bricolage` / `--font-jetbrains`).
 - **Utilities:** `t-mega`, `t-hero`, `t-display`, `t-h2`, `t-h3`, `t-lead`, `t-body`, `t-italic`, `t-label`, `btn`, `btn-ghost`, `pill`, `sim`, `sim-light`, `link-u`.
 - **Section headings in worlds:** reuse `Label` from `project/ProjectPage.tsx` (`<Label n="04">The demo</Label>`).
 
 ## 4. Motion
 
 - **Signature motion: slap and settle.** Letters drop in with a back-ease, stickers pop on, cards sit tilted and straighten when you reach for them.
-- **Opening a project** is a View Transition: the old page recedes and the new one opens through a vertical slit from where you clicked (`ProjectLink`), and the card's preview and title morph into the project page.
+- **Opening a project** is a View Transition in the slap-and-settle language: the old page drops away onto the orange ground, and the new page slaps up from below like a chunky card (rounded 40px top, 2px ink edge, a hard ink lip), tilted toward where you clicked (`ProjectLink` sets `--ap-x`/`--ap-tilt`), overshoots a hair and lands flat. The card's preview and title morph into the project page on top. Top-level pages crossfade. Smooth scroll holds still while a transition plays (`holdForNavigation` in `lib/scroll.ts`).
 - **Morph names:** shared-element morphs use `visual-<slug>` (the Mini or HeroVisual wrapper) and `title-<slug>`. They are set by the template, so **never** set these names yourself.
 - **Easing:** `--ease-cine` and `--ease-out-expo`. Intros last no more than 1.2 s and never block reading or input.
+- **One set of motion values:** `MOTION` in `lib/gsap.ts` (scrub lag, settle and rise eases, the "arrived" line). Use it instead of new numbers.
+- **Lenis + ScrollTrigger:** one GSAP ticker drives Lenis, and Lenis feeds `ScrollTrigger.update` (`chrome/SmoothScroll.tsx`). Never add a second rAF scroll loop.
 - **Scroll:** pins are short (no section above about 300 svh), and navigation never depends on scrolling.
 - **Reduced motion:** a calm static composition, with demos still fully usable.
 
@@ -88,7 +91,10 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 
 - **Rendering:** nothing animates off screen. Gate every rAF and canvas loop with an IntersectionObserver.
 - **Canvas:** 2D canvases cap DPR at 1.5 and redraw only what changes.
-- **WebGL:** only through a `Stage` (`world/Stage.tsx` via `world/stages.tsx`). It renders on demand, stops off screen and disposes on unmount. At most one stage per page.
+- **WebGL:** only through a `Stage` (`world/Stage.tsx` via `world/stages.tsx`), or on the home hero through `world/HeroStickers.tsx`. Both render on demand, stop off screen and dispose on unmount. At most one per page.
+- **No visible load:** a Stage shows its poster (`world/Poster.tsx`, a still render of the scene at its first camera position, desktop and phone WebP in `public/work/<slug>/`) while three.js loads, and the canvas fades in over it. If a scene changes, re-render its posters.
+- **Hero stickers 3D** load only after the intro, on idle, and only with a mouse, a screen ≥ 768px wide, motion allowed and no Save-Data. Phones never download three.js on the home page. That canvas allows DPR 2 (three small meshes, text must stay sharp).
+- **Big SVG drawings that move on scroll** must move as composited layers, never by changing what's inside one SVG (the footer crowd draws each person as its own small SVG for this reason).
 - **Lifetime:** clean up everything on unmount (pages unmount on navigation). Module-level timers and streams must stop.
 - **Images:** `next/image` with `sizes`. Sequences are WebP, and a desktop/mobile pair if heavy. Lazy-load anything below the fold.
 - **No new npm dependencies.**

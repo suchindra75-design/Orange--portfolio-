@@ -260,7 +260,7 @@ function HairFront({ p, pat }: { p: Person; pat: (k: string) => string }) {
           {Array.from({ length: k }, (_, i) => {
             const a = Math.PI * (1 + i / (k - 1));
             const r = (p.hair === "curly" ? 9 : 10) * s;
-            return <circle key={i} cx={x + Math.cos(a) * hw * 0.98} cy={hy - hh * 0.3 + Math.sin(a) * hh * 0.95} r={r} />;
+            return <circle key={i} cx={n(x + Math.cos(a) * hw * 0.98)} cy={n(hy - hh * 0.3 + Math.sin(a) * hh * 0.95)} r={n(r)} />;
           })}
         </g>
       );

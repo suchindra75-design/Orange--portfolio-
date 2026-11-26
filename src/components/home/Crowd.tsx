@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { gsap, MOTION, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion } from "@/lib/hooks";
 import { H, W, makeCrowd, Patterns, PersonSvg, type Person } from "./crowd/people";
 import Image from "next/image";
@@ -13,18 +13,43 @@ const WEB_R = webPath({ x: 1440, y: 0, r: 260, a0: Math.PI / 2, a1: Math.PI, spo
 const BACK = PEOPLE.filter((p) => p.row < 2);
 const FRONT = PEOPLE.filter((p) => p.row >= 2);
 
-/** One depth layer of the crowd. Every person carries their own "flow" offset toward the centre. */
+const pct = (v: number) => `${(v * 100).toFixed(3)}%`;
+
+/**
+ * One depth layer of the crowd. Every person is their own small SVG (all drawn in the same
+ * 2000×560 scene units, so patterns and positions line up exactly) and carries their own "flow"
+ * offset toward the centre. Moving them is then pure compositing: the drawing is painted once,
+ * not on every scroll frame, which is what used to drop frames as the footer arrived.
+ */
 function Layer({ people, id }: { people: Person[]; id: string }) {
   const pat = (k: string) => `url(#${id}-${k})`;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMax slice" className="absolute inset-0 h-full w-full" aria-hidden="true">
-      <Patterns id={id} />
-      {people.map((p, i) => (
-        <g key={i} className="crowd-flow" style={{ ["--dx" as string]: `${p.flow.toFixed(1)}px` }}>
-          <PersonSvg p={p} pat={pat} />
-        </g>
-      ))}
-    </svg>
+    <div className="crowd-layer" aria-hidden="true">
+      <svg width="0" height="0" className="absolute">
+        <Patterns id={id} />
+      </svg>
+      <div className="crowd-scene">
+        {people.map((p, i) => {
+          // The person's box in scene units: shoulders, a tilt of a few degrees, hair above the head.
+          const half = 70 * p.s + 32;
+          const x0 = p.x - half;
+          const y0 = p.hy - p.hh - 45 * p.s;
+          const w = half * 2;
+          const h = H + 40 - y0;
+          return (
+            <svg
+              key={i}
+              viewBox={`${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`}
+              overflow="visible"
+              className="crowd-person"
+              style={{ left: pct(x0 / W), top: pct(y0 / H), width: pct(w / W), height: pct(h / H), ["--dx" as string]: pct(p.flow / w) }}
+            >
+              <PersonSvg p={p} pat={pat} />
+            </svg>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -47,7 +72,7 @@ export function Crowd({ name }: { name: string }) {
         el.style.setProperty("--flow", "0");
         return;
       }
-      const st = { trigger: el, start: "top bottom", end: "bottom bottom", scrub: 0.9 };
+      const st = { trigger: el, start: "top bottom", end: "bottom bottom", scrub: MOTION.scrubSlow };
       // The crowd starts gathered close around him and flows outward as the panorama arrives.
       gsap.fromTo(el, { "--flow": 1 }, { "--flow": 0, ease: "none", scrollTrigger: { ...st, start: "top 95%" } });
       gsap.fromTo("[data-depth=name]", { xPercent: 4 }, { xPercent: -4, ease: "none", scrollTrigger: st });
@@ -98,7 +123,7 @@ export function Crowd({ name }: { name: string }) {
   return (
     <div ref={ref} className="crowd relative h-[clamp(440px,42vw,700px)] overflow-hidden bg-pop text-ink" style={{ ["--flow" as string]: 1 }}>
       {/* The name, enormous, behind everyone */}
-      <div data-depth="name" aria-hidden="true" className="pointer-events-none absolute inset-x-[-6%] top-[5%] flex select-none justify-center">
+      <div data-depth="name" aria-hidden="true" className="pointer-events-none absolute will-change-transform inset-x-[-6%] top-[5%] flex select-none justify-center">
         <span className="t-name whitespace-nowrap uppercase text-cream" style={{ fontSize: "clamp(3.4rem, 16.6vw, 19rem)" }}>
           {name}
         </span>
@@ -109,7 +134,7 @@ export function Crowd({ name }: { name: string }) {
       </svg>
       <Layer people={BACK} id="crowd-back" />
       {/* The main character: his actual photograph, printed in the crowd's ink */}
-      <div data-depth="hero" className="absolute left-1/2 top-[22%] z-[3] aspect-[1808/2862] h-[80%] -translate-x-1/2 md:top-[12%] md:h-[94%]">
+      <div data-depth="hero" className="absolute will-change-transform left-1/2 top-[22%] z-[3] aspect-[1808/2862] h-[80%] -translate-x-1/2 md:top-[12%] md:h-[94%]">
         <Image src="/me/footer-ink.png" alt={`${name}, standing at the centre of the crowd`} fill sizes="(max-width: 768px) 60vw, 26vw" className="sticker-cut object-contain object-top" />
       </div>
       <Layer people={FRONT} id="crowd-front" />

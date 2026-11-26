@@ -10,6 +10,7 @@ import { QualityContext, type Quality } from "./system/quality";
 import { P } from "./system/palette";
 import { world } from "@/lib/store";
 import { useReducedMotion } from "@/lib/hooks";
+import { PosterImage, type StagePoster } from "./Poster";
 
 /** One broken scene must never take the page down. */
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -150,7 +151,7 @@ const subscribeMobile = (cb: () => void) => {
  * with it. It renders on demand only, and not at all while off screen. Pixel ratio is capped,
  * and quality drops on phones or when the GPU struggles (?quality=high|low pins it for QA).
  */
-export function Stage({ def, Scene }: { def: ActDef; Scene: ComponentType }) {
+export function Stage({ def, Scene, poster }: { def: ActDef; Scene: ComponentType; poster?: StagePoster }) {
   const reduced = useReducedMotion();
   const mobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia(mobileQuery).matches, () => false);
   const [declined, setDeclined] = useState(false);
@@ -162,6 +163,8 @@ export function Stage({ def, Scene }: { def: ActDef; Scene: ComponentType }) {
   const quality: Quality = forced ?? (mobile || declined ? "low" : "high");
   const host = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(false);
+  // The canvas fades in over the poster once its first frames are on screen.
+  const [drawn, setDrawn] = useState(false);
 
   useEffect(() => {
     world.set({ webgl: supported });
@@ -180,14 +183,19 @@ export function Stage({ def, Scene }: { def: ActDef; Scene: ComponentType }) {
 
   return (
     <div ref={host} className="stage" aria-hidden="true">
-      <div className="stage__view" style={{ background: def.atmosphere.background }}>
+      <div className="stage__view" data-drawn={drawn || !poster ? "" : undefined} style={{ background: def.atmosphere.background }}>
+        {poster && <PosterImage poster={poster} />}
         <Canvas
           frameloop={live ? "demand" : "never"}
           dpr={quality === "low" ? 1 : [1, 1.5]}
           camera={{ fov: 40, near: 0.1, far: 260, position: [0, 2, 40] }}
           gl={{ antialias: quality === "high", powerPreference: "high-performance", alpha: false }}
           style={{ pointerEvents: "none" }}
-          onCreated={() => world.set({ worldReady: true })}
+          onCreated={() => {
+            world.set({ worldReady: true });
+            // Two frames after creation the environment and first render are done.
+            requestAnimationFrame(() => requestAnimationFrame(() => setDrawn(true)));
+          }}
         >
           <QualityContext.Provider value={quality}>
             <PerformanceMonitor onDecline={() => setDeclined(true)} />
