@@ -131,6 +131,9 @@ export function Hero() {
   }, []);
 
   return (
+    // The crane's stage: on the bench it's taller than the screen and the hero sticks inside it
+    // (CSS sticky, so the hero is never moved in the DOM; see .crane-stage in globals.css).
+    <div data-crane-stage className="crane-stage relative">
     <section ref={root} id="hero" data-ground="light" aria-labelledby="hero-name" className="relative h-[100svh] min-h-[600px] overflow-hidden bg-pop text-ink">
       {/* The name, huge, in cream */}
       <h1 id="hero-name" aria-label={site.name} className="t-name absolute inset-x-0 top-[calc(var(--header-h)+3svh)] z-[1] flex justify-center overflow-hidden whitespace-nowrap text-[min(19.6vw,40svh)] leading-[0.86] text-cream">
@@ -193,5 +196,6 @@ export function Hero() {
         See the work ↓
       </button>
     </section>
+    </div>
   );
 }

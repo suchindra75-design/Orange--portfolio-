@@ -32,13 +32,21 @@ export function Turntable() {
   const [load, setLoad] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const [touch, setTouch] = useState(false);
+  const [noGL, setNoGL] = useState(false);
 
-  // With a mouse, load as it comes into view; on touch screens, wait for the tap.
+  // With a mouse, load as it comes into view; on touch screens, wait for the tap; without WebGL, never.
   useEffect(() => {
     const coarse = window.matchMedia("(pointer: coarse)").matches;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const t = window.setTimeout(() => setTouch(coarse || reduced), 0);
-    if (coarse || reduced) return () => window.clearTimeout(t);
+    let gl = false;
+    try {
+      const c = document.createElement("canvas");
+      gl = !!(c.getContext("webgl2") || c.getContext("webgl"));
+    } catch {
+      gl = false;
+    }
+    const t = window.setTimeout(() => (gl ? setTouch(coarse || reduced) : setNoGL(true)), 0);
+    if (!gl || coarse || reduced) return () => window.clearTimeout(t);
     const el = box.current;
     if (!el) return () => window.clearTimeout(t);
     const io = new IntersectionObserver(([e]) => e.isIntersecting && setLoad(true), { rootMargin: "200px" });
@@ -58,7 +66,8 @@ export function Turntable() {
         {!load && (
           <>
             <Image src={`/bench/${slug}.webp`} alt="" fill sizes="(max-width: 768px) 90vw, 50vw" className="object-contain p-[12%]" />
-            {touch && (
+            {noGL && <p className="t-label absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border-2 border-ink bg-cream px-3 py-1.5">3D isn’t available in this browser</p>}
+            {touch && !noGL && (
               <button type="button" onClick={() => setLoad(true)} className="pill-ink t-label absolute bottom-5 left-1/2 -translate-x-1/2">
                 Turn it in 3D · loads about 250 KB
               </button>

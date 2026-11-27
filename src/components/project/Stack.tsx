@@ -109,7 +109,11 @@ export function Stack({ project, n }: { project: Project; n: string }) {
 
   const onDown = (e: RPointerEvent<HTMLDivElement>) => {
     dragRef.current = { x: e.clientX, y: e.clientY, v: openRef.current };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* the pointer is already gone: dragging still works without capture */
+    }
   };
   const onMove = (e: RPointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;

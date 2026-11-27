@@ -965,9 +965,22 @@ html:active-view-transition-type(open-project)::view-transition-new(root) {
 html[data-bench] #worlds {
   display: none;
 }
+/* The crane: 130% of a screen of scroll while the hero stays put (sticky, never re-parented). */
+html[data-bench] .crane-stage {
+  height: calc(max(100svh, 600px) + 130vh);
+}
+html[data-bench] .crane-stage > #hero {
+  position: sticky;
+  top: 0;
+}
+/* The rail and chips fade in at the end of the crane. They stay focusable before that (keyboard
+   users Tab straight into the project list; focusing it finishes the crane), but take no clicks
+   until they're visible. */
 .bench-ui {
   opacity: 0;
-  visibility: hidden;
+}
+#hero:not([data-bench-on]) .bench-ui {
+  pointer-events: none;
 }
 .bench-hits {
   pointer-events: none;

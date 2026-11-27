@@ -75,7 +75,11 @@ export default function TurntableCanvas({ slug, outline, soft }: { slug: Project
       onCreated={(s) => (inv.current = s.invalidate)}
       onPointerDown={(e) => {
         drag.current = { x: e.clientX, y: e.clientY };
-        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+        try {
+          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+        } catch {
+          /* already released */
+        }
       }}
       onPointerMove={(e) => {
         const d = drag.current;

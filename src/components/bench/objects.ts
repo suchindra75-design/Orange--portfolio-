@@ -26,8 +26,9 @@ export type ObjectSpec = { parts: Part[]; screens: Screen[]; foot: [number, numb
 const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
 const rbox = (w: number, h: number, d: number, r: number) => new RoundedBoxGeometry(w, h, d, 3, r);
 
-/** A real screenshot, through Next's image optimiser (small WebP, cached). */
-const shot = (src: string) => `/_next/image?url=${encodeURIComponent(src)}&w=640&q=70`;
+/** A real screenshot, through Next's image optimiser (small WebP, cached). Quality must be 75:
+ *  production only serves the configured qualities, and anything else is a 400. */
+const shot = (src: string) => `/_next/image?url=${encodeURIComponent(src)}&w=640&q=75`;
 
 /** INFINOS Telemetry's screen: its recorded readings (Field 1 and Field 2), plotted in its own colours. */
 function telemetryPlot() {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Mo
 import dynamic from "next/dynamic";
 import { gsap, MOTION, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { bench, heroIntro } from "@/lib/bench";
+import { scrollToTarget } from "@/lib/scroll";
 import { mainProjects, projects, type ProjectSlug } from "@/content/projects";
 import { CHIPS, chipSlugs } from "@/content/bench";
 import { PageLink, ProjectLink } from "@/components/chrome/Links";
@@ -12,7 +13,7 @@ import type { BenchTargets } from "@/components/bench/BenchCanvas";
 /**
  * THE BENCH, DOM SIDE (home hero, desktop with a mouse; see DESIGN.md v8 "The bench").
  *
- * The hero pins, and scrolling cranes the camera from the hero over the bench (the crane). The
+ * The hero sticks (CSS) inside a taller stage, and scrolling cranes the camera from the hero over the bench (the crane). The
  * DOM owns everything a visitor reads or clicks:
  *   - the index rail: every project as a real link (keyboard and screen readers use only this);
  *   - one invisible hit area per object, sized each frame to the object's box on screen;
@@ -113,6 +114,7 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
         setHover(s.hover);
         setFilter(s.filter?.id ?? null);
         hitsRef.current?.toggleAttribute("data-on", s.crane > 0.82 && !s.tour);
+        hero.current?.toggleAttribute("data-bench-on", s.crane > 0.82);
         hero.current?.toggleAttribute("data-flying", !!s.focus && !s.tour);
         // No visible load: until the 3D bench has drawn, its still stands in, arriving as the crane does.
         if (s.crane > 0.02) setPoster(true);
@@ -129,7 +131,8 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
       const proxy = { p: 0 };
       const from = { immediateRender: false };
       const tl = gsap.timeline({
-        scrollTrigger: { id: "crane", trigger: root, start: "top top", end: "+=130%", pin: true, scrub: MOTION.scrub, anticipatePin: 1 },
+        // No pin: the hero is CSS-sticky inside its taller stage, so it never moves in the DOM.
+        scrollTrigger: { id: "crane", trigger: root.parentElement ?? root, start: "top top", end: "bottom bottom", scrub: MOTION.scrub },
       });
       const onCrane = () => {
         if (proxy.p > 0 && heroIntro.tl && heroIntro.tl.progress() < 1) heroIntro.tl.progress(1);
@@ -139,7 +142,7 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
         .fromTo(root.querySelector("h1"), { yPercent: 0, autoAlpha: 1 }, { yPercent: -45, autoAlpha: 0, duration: 0.42, ease: "power1.in", ...from }, 0.04)
         .fromTo(root.querySelectorAll("[data-sticker]"), { yPercent: 0, autoAlpha: 1 }, { yPercent: -160, autoAlpha: 0, duration: 0.3, ease: "power1.in", ...from }, 0)
         .fromTo(root.querySelectorAll("[data-lead], [data-see-work]"), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.14, ...from }, 0)
-        .fromTo(root.querySelectorAll("[data-bench-ui]"), { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.18, ease: "power2.out", ...from }, 0.8);
+        .fromTo(root.querySelectorAll("[data-bench-ui]"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.18, ease: "power2.out", ...from }, 0.8);
       return () => bench.set({ crane: 0, hover: null, focus: null, filter: null, tour: false, look: null });
     },
     { scope: hero, dependencies: [] },
@@ -180,6 +183,12 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
     },
     [stopTour],
   );
+
+  /** Keyboard users who Tab into the rail or chips before scrolling get the bench brought up for them. */
+  const finishCrane = () => {
+    const end = craneEnd();
+    if (end !== null && bench.get().crane < 0.82) scrollToTarget(end, { duration: 0.9 });
+  };
 
   const toggleChip = (id: string) => {
     stopTour();
@@ -262,7 +271,7 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
       </div>
 
       {/* The index rail: every project, as a real link */}
-      <nav data-bench-ui aria-labelledby="bench-title" className="bench-ui absolute left-[var(--gutter)] top-[calc(var(--header-h)+1.25rem)] z-[7] w-[clamp(14rem,19vw,17.5rem)]">
+      <nav data-bench-ui aria-labelledby="bench-title" onFocus={finishCrane} className="bench-ui absolute left-[var(--gutter)] top-[calc(var(--header-h)+1.25rem)] z-[7] w-[clamp(14rem,19vw,17.5rem)]">
         <div className="chunky max-h-[calc(100svh-var(--header-h)-3rem)] overflow-auto px-5 py-4">
           <h2 id="bench-title" className="t-label text-ink/60">
             On the bench · {projects.length} projects
@@ -299,7 +308,7 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
       </nav>
 
       {/* The chips: honest filters, and the tour */}
-      <div data-bench-ui role="group" aria-label="Ask the bench" className="bench-ui absolute left-[calc(var(--gutter)+clamp(14rem,19vw,17.5rem)+1.5rem)] right-[var(--gutter)] top-[calc(var(--header-h)+1.25rem)] z-[7] flex flex-wrap items-center justify-center gap-2">
+      <div data-bench-ui role="group" aria-label="Ask the bench" onFocus={finishCrane} className="bench-ui absolute left-[calc(var(--gutter)+clamp(14rem,19vw,17.5rem)+1.5rem)] right-[var(--gutter)] top-[calc(var(--header-h)+1.25rem)] z-[7] flex flex-wrap items-center justify-center gap-2">
         {CHIPS.map((c) => (
           <button key={c.id} type="button" aria-pressed={filter === c.id} onClick={() => toggleChip(c.id)} className={`t-label rounded-full border-2 border-ink px-3.5 py-2 transition-[background-color,color,translate] duration-150 active:translate-y-[2px] ${filter === c.id ? "bg-ink text-cream" : "bg-cream text-ink hover:bg-ink hover:text-cream"}`}>
             {c.label}
