@@ -45,9 +45,22 @@ export class BleChannel {
   dropUntil = -1;
   gaps: Gap[] = [];
   gapCount = 0;
+  /** Blinks the visitor asked for (times, in signal seconds): each adds an EOG bump as it streams in. */
+  private blinks: number[] = [];
 
   constructor() {
     this.advance(31);
+  }
+
+  /** "Blink to drive": a blink of yours, simulated, about to arrive on the EOG channel. */
+  blink() {
+    this.blinks.push(this.now + 0.08);
+  }
+
+  private blinkAt(ts: number) {
+    let v = 0;
+    for (const c of this.blinks) v += Math.exp(-(((ts - c) / 0.075) ** 2)) * 1.3;
+    return v;
   }
 
   advance(dt: number) {
@@ -64,7 +77,7 @@ export class BleChannel {
           const ts = rt - (PAIRS_PER_NOTIFY - 1 - i) / NOMINAL_HZ;
           const s = this.seq++;
           this.eeg[this.head] = eeg(ts) + pop(s);
-          this.eog[this.head] = eog(ts);
+          this.eog[this.head] = eog(ts) + (this.blinks.length ? this.blinkAt(ts) : 0);
           this.t[this.head] = ts;
           this.seqs[this.head] = s;
           this.head = (this.head + 1) % CAPACITY;
@@ -75,6 +88,7 @@ export class BleChannel {
     }
     this.now = end;
     this.gaps = this.gaps.filter((g) => g.b > this.now - 32);
+    if (this.blinks.length) this.blinks = this.blinks.filter((c) => c > this.now - 1);
   }
 
   drop(seconds: number) {

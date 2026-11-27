@@ -51,6 +51,15 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 - **Cinematic details:** the crane swings out to the side on its way up, then settles square. At the overview, the camera leans slightly toward the cursor (a damped spring, off during a fly-in or the tour). Opening a project, the rail and chips step aside while the camera flies in. The crane finishes the hero's intro the moment it starts, so the two never fight.
 - **One clock:** the bench canvas is `frameloop="never"` and draws inside GSAP's ticker, after Lenis and ScrollTrigger, so the crane, the card and the page agree on every frame. It draws only when asked and never while the hero is off screen. The three hero stickers are drawn in the same canvas, on top, with their own pixel camera (one WebGL context).
 
+**Take it apart (v8, every project page, `project/Stack.tsx` + `content/stacks.ts`):** after "What I built", the project's object from the bench sits on top of its system, drawn as a stack of real layers in **CSS 3D** (no WebGL, so it works on every phone and costs no context).
+- **Pull apart:** drag the stack, or use the slider (arrow keys). It opens a little as it arrives, once.
+- **Probe:** pick a layer to read what it does. Every line restates a fact already on the page (projects.ts); `stacks.ts` never adds a claim.
+- **Send a signal:** a pulse climbs the layers, each drawing the project's own trace (a voice, an EEG burst, a reading, a relay pulse). **RAYA's stops at the approval layer and waits:** Allow lets it through, Deny stops it, and silence times out after 8 seconds with nothing running, the way RAYA's own card works. Badged "Simulation · a picture of the flow, nothing runs".
+- **Reduced motion:** the stack rests open, and the signal steps without moving.
+- The "Next project" block shows the next object from the bench, waiting to be picked up.
+
+**Blink to drive (Brain Matrix demo):** a Blink button, or a tap on the trace, adds the visitor's blink (simulated) to the streaming EOG channel, where it lands as a sharp bump. This stands in for "Photo → mesh" (AI 3D Studio) until the owner supplies a real model exported by AI 3D Studio.
+
 **The owner's photograph:**
 - **Hero (until 26 Nov 2026):** `/me/hero.png` with `.sticker-cut`, kept in the repo in case he wants it back.
 - **Footer:** an ink line-engraving print, from `/me/footer-ink.png`, with `.sticker-cut`.

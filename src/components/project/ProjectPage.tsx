@@ -5,6 +5,7 @@ import { worldFor } from "@/components/worlds/registry";
 import { PageShell } from "@/components/chrome/PageShell";
 import { PageLink, ProjectLink } from "@/components/chrome/Links";
 import { Reveal } from "@/components/ui/Reveal";
+import { Stack } from "./Stack";
 
 const TONE: Record<Tone, string> = {
   live: "var(--color-verdigris)",
@@ -184,6 +185,9 @@ export function ProjectPage({ project }: { project: Project }) {
         </ol>
       </section>
 
+      {/* ── Take it apart: the system, layer by layer (Explode & probe) */}
+      <Stack project={project} n={num()} />
+
       {w.Extra && <w.Extra project={project} n={Array.from({ length: w.extraCount ?? 1 }, num)} />}
 
       {/* ── Features */}
@@ -288,6 +292,10 @@ export function ProjectPage({ project }: { project: Project }) {
             </div>
           </ViewTransition>
           <div aria-hidden="true" className="absolute inset-0" style={{ background: `linear-gradient(to top, ${next.world.bg} 10%, transparent 75%)` }} />
+          {/* The next object on the bench, waiting to be picked up */}
+          <div aria-hidden="true" className="next-object pointer-events-none absolute bottom-[clamp(1.5rem,6svh,4rem)] right-[var(--gutter)] w-[clamp(7rem,18vw,15rem)]">
+            <Image src={`/bench/${next.slug}.webp`} alt="" width={280} height={280} sizes="(max-width: 768px) 30vw, 15rem" className="h-auto w-full" />
+          </div>
           <div className="relative flex min-h-[70svh] flex-col justify-end px-[var(--gutter)] pb-[clamp(2rem,7svh,4.5rem)]">
             <p className="t-label opacity-70">Next project · {next.index}</p>
             <ViewTransition name={`title-${next.slug}`} share="morph" default="none">

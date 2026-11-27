@@ -99,6 +99,16 @@ export function Demo({ n }: WorldProps) {
 
   const isBle = source === "bluetooth";
 
+  /** Blink to drive: your blink (simulated) arrives on the EOG trace. */
+  const blink = () => {
+    const e = eng.current;
+    if (!e || !isBle) return;
+    e.ble.blink();
+    if (!playing) e.ble.advance(0.6);
+    setStatus("Your blink, simulated: EOG is the channel that records eye movement, and a blink lands on it as a sharp bump.");
+    setVersion((v) => v + 1);
+  };
+
   const pickSource = (s: Source) => {
     setSource(s);
     setStatus(s === "bluetooth" ? "Bluetooth: about 250 samples a second, in real time." : `Cloud: one packet about every 17 to 20 seconds, shown ${CLOUD_SPEED} times faster.`);
@@ -127,7 +137,7 @@ export function Demo({ n }: WorldProps) {
           Two data rates, <span className="t-italic text-[var(--w-accent)]">one</span> view.
         </h2>
         <p className="t-body opacity-80 md:col-span-4 md:col-start-9">
-          The Live EEG view reads either channel. Switch between them, drop the link and watch what happens to the gap, then draw thirty seconds the naive way and see the spikes go missing.
+          The Live EEG view reads either channel. Switch between them, blink (tap the trace) and find your blink on the EOG line, drop the link and watch what happens to the gap, then draw thirty seconds the naive way and see the spikes go missing.
         </p>
       </div>
 
@@ -159,6 +169,11 @@ export function Demo({ n }: WorldProps) {
             />
           )}
           <div className="flex items-center gap-2 md:ml-auto">
+            {isBle && (
+              <button type="button" onClick={blink} className="btn !px-4 !py-2.5" style={{ background: "var(--w-accent)", color: "var(--w-bg)" }}>
+                Blink
+              </button>
+            )}
             <button type="button" onClick={drop} className="btn btn-ghost !px-4 !py-2.5">
               {isBle ? "Drop the link · 1.5 s" : "Lose a packet"}
             </button>
@@ -171,7 +186,8 @@ export function Demo({ n }: WorldProps) {
         <div className="relative h-[clamp(17rem,36vw,27rem)]">
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 block size-full"
+            onPointerDown={isBle ? blink : undefined}
+            className={`absolute inset-0 block size-full ${isBle ? "cursor-pointer" : ""}`}
             role="img"
             aria-label={
               isBle
