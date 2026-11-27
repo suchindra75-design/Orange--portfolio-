@@ -50,6 +50,7 @@ const PAGE_KEYS: Record<string, string> = {
   "/projects": "projects work portfolio all collection worlds",
   "/about": "about resume cv experience skills education background bio cbit who",
   "/contact": "contact hire reach message talk email mail",
+  "/lab": "lab experiments playground pose graph character turntable 3d shader toon",
 };
 
 const PAGE_DETAIL: Record<string, string> = {
@@ -57,6 +58,7 @@ const PAGE_DETAIL: Record<string, string> = {
   "/projects": "All the work",
   "/about": "Experience, skills, résumé",
   "/contact": "Say hello",
+  "/lab": "Experiments, opened up",
 };
 
 const projectItem = (p: Project, group: JumpGroup): JumpItem => ({

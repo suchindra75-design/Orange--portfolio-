@@ -29,16 +29,22 @@ const toonFrag = /* glsl */ `
   uniform vec3 uInk;
   uniform vec3 uLight;
   uniform float uDim;
+  uniform float uMode;
   varying vec3 vN;
   void main() {
     float d = dot(normalize(vN), uLight);
-    vec3 c = d > 0.5 ? uColor : d > 0.08 ? uColor * 0.82 : mix(uColor, uInk, 0.35);
+    vec3 stepped = d > 0.5 ? uColor : d > 0.08 ? uColor * 0.82 : mix(uColor, uInk, 0.35);
+    vec3 soft = mix(mix(uColor, uInk, 0.35), uColor, clamp(d * 0.75 + 0.35, 0.0, 1.0));
+    vec3 c = mix(stepped, soft, uMode);
     c = mix(c, c * 0.4 + uInk * 0.1, uDim);
     gl_FragColor = vec4(c, 1.0);
   }
 `;
 
 type DimUniform = { value: number };
+
+/** 0 = the bench's three printed steps; 1 = smooth shading (the lab's comparison only). */
+export const toonMode = { value: 0 };
 
 const cache = new Map<string, THREE.ShaderMaterial>();
 /** The shared toon material for one colour (and one dim uniform per object, see `objectDim`). */
@@ -54,6 +60,7 @@ export function toon(color: string, dim: DimUniform) {
         uInk: { value: new THREE.Color(INK) },
         uLight: { value: LIGHT_DIR },
         uDim: dim,
+        uMode: toonMode,
       },
     });
     cache.set(key, m);

@@ -73,6 +73,7 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 | `/projects` | `project/Collection.tsx` |
 | `/projects/[slug]` | `project/ProjectPage.tsx` (the one template) plus the project's **world** (`components/worlds/<slug>/`) |
 | `/about`, `/contact` | `app/about/page.tsx`, `app/contact/page.tsx` |
+| `/lab` | `app/lab/page.tsx`: two experiments the site runs on, opened up. "Pose graph" (`lab/PoseGraph.tsx`) draws the character's 64 real frames where each looks, and walks the hero's own route (`home/poseGraph.ts`) to wherever you point. "Turntable" (`lab/Turntable.tsx`) lets you turn any bench object (the bench's own `bench/build.ts` and `bench/toon.ts`) and switch its printed shading and outline off and on. Three.js loads when the turntable comes into view with a mouse, or on a tap on touch screens (the button says it's about 250 KB). |
 | `/work/:slug` | Permanent redirect to `/projects/:slug` (`next.config.ts`) |
 | The nav and the footer | `chrome/Nav.tsx`, `home/Footer.tsx` + `home/Crowd.tsx`, both in the layout (on every page) |
 
