@@ -7,6 +7,7 @@ import { prefersReducedMotion } from "@/lib/hooks";
 import { scrollToTarget } from "@/lib/scroll";
 import { site } from "@/content/site";
 import { HeroCharacter } from "./HeroCharacter";
+import { Bench, craneEnd, useBenchMode } from "./Bench";
 
 const NAME = "SUCHINDRA";
 
@@ -65,7 +66,9 @@ function useLoad3DStickers() {
 export function Hero() {
   const root = useRef<HTMLElement>(null);
   const fig = useRef<HTMLDivElement>(null);
+  const card = useRef<HTMLDivElement>(null);
   const load3D = useLoad3DStickers();
+  const benchMode = useBenchMode();
 
   useGSAP(
     () => {
@@ -75,10 +78,18 @@ export function Hero() {
         .from(fig.current, { yPercent: 18, scale: 0.92, autoAlpha: 0, duration: 0.8, ease: "back.out(1.3)" }, 0.35)
         .from("[data-sticker]", { scale: 0.4, autoAlpha: 0, duration: 0.55, stagger: 0.09 }, 0.75)
         .from("[data-lead]", { y: 24, autoAlpha: 0, duration: 0.6, ease: "power3.out" }, 0.8);
-      // Leaving: the stickers drift a little faster than the page (a touch of depth, nothing more).
-      gsap.to("[data-sticker]", { yPercent: -60, ease: "none", scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: MOTION.scrub } });
     },
     { scope: root },
+  );
+
+  // Leaving: the stickers drift a little faster than the page (a touch of depth, nothing more).
+  // On the bench the crane moves them instead (Bench.tsx).
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || benchMode) return;
+      gsap.to("[data-sticker]", { yPercent: -60, ease: "none", scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: MOTION.scrub } });
+    },
+    { scope: root, dependencies: [benchMode], revertOnUpdate: true },
   );
 
   // Spider-sense near his head (mouse only, only while the hero is on screen).
@@ -125,8 +136,10 @@ export function Hero() {
         ))}
       </h1>
 
-      {/* His character, on a photo-sticker card: it turns to look at your cursor (HeroCharacter) */}
-      <div ref={fig} data-sense="off" className="absolute bottom-[-5%] left-1/2 z-[3] aspect-[3/4] h-[min(60svh,118vw)] -translate-x-1/2 rotate-[-2deg] md:aspect-[4/5] md:h-[min(68svh,52vw)] md:portrait:aspect-[3/4] md:portrait:h-[min(60svh,70vw)]">
+      {/* His character, on a photo-sticker card: it turns to look at your cursor (HeroCharacter).
+          On the bench, the wrapper is moved by the crane so the card stands on the bench's front edge. */}
+      <div ref={card} className="pointer-events-none absolute inset-0 z-[3]">
+      <div ref={fig} data-sense="off" className="pointer-events-auto absolute bottom-[-5%] left-1/2 aspect-[3/4] h-[min(60svh,118vw)] -translate-x-1/2 rotate-[-2deg] md:aspect-[4/5] md:h-[min(68svh,52vw)] md:portrait:aspect-[3/4] md:portrait:h-[min(60svh,70vw)]">
         <div className="hero-card h-full w-full">
           <HeroCharacter alt={`${site.name} as an animated cartoon character`} />
         </div>
@@ -141,6 +154,7 @@ export function Hero() {
           </g>
         </svg>
       </div>
+      </div>
 
       {/* What he builds, as stickers */}
       <Sticker icon="mic" rot={-8} className="left-[18%] top-[47%] max-md:left-[4%] max-md:top-[37%]">
@@ -153,7 +167,8 @@ export function Hero() {
         EEG over Bluetooth
       </Sticker>
 
-      {load3D && <HeroStickers hero={root} />}
+      {load3D && !benchMode && <HeroStickers hero={root} />}
+      {benchMode && <Bench hero={root} card={card} fig={fig} />}
 
       {/* The line */}
       <div data-lead className="absolute bottom-[clamp(1.5rem,6svh,3.5rem)] left-[var(--gutter)] z-[5] max-w-[21rem] max-xl:hidden">
@@ -162,7 +177,14 @@ export function Hero() {
           {site.location.split(",")[0]} · {site.current.company}
         </p>
       </div>
-      <button type="button" onClick={() => scrollToTarget("#worlds", { duration: 1.4 })} className="pill-ink t-label absolute bottom-[clamp(1.5rem,6svh,3.5rem)] right-[var(--gutter)] z-[5] max-md:hidden">
+      <button
+        type="button"
+        data-see-work
+        onClick={() => {
+          const end = craneEnd();
+          scrollToTarget(end ?? "#worlds", { duration: 1.4 });
+        }}
+        className="pill-ink t-label absolute bottom-[clamp(1.5rem,6svh,3.5rem)] right-[var(--gutter)] z-[5] max-md:hidden">
         See the work ↓
       </button>
     </section>

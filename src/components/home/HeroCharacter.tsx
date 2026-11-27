@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import NextImage from "next/image";
 import { character } from "@/content/character";
+import { bench } from "@/lib/bench";
 import { prefersReducedMotion } from "@/lib/hooks";
 
 /**
@@ -202,10 +203,12 @@ export function HeroCharacter({ alt }: { alt: string }) {
       last = t;
       const now = performance.now();
 
-      if (pointer) {
+      // On the home bench he looks at the object you point at; otherwise at your cursor.
+      const target = bench.get().look ?? pointer;
+      if (target) {
         const r = el.getBoundingClientRect();
-        const dx = pointer.x - (r.left + r.width * FACE.x);
-        const dy = pointer.y - (r.top + r.height * FACE.y);
+        const dx = target.x - (r.left + r.width * FACE.x);
+        const dy = target.y - (r.top + r.height * FACE.y);
         const d = Math.hypot(dx, dy) / r.height;
         looking = looking ? d < EYE_OUT : d < EYE_IN;
         if (looking) setAim(0);
@@ -270,7 +273,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
       window.clearTimeout(sleeper);
       last = 0;
       const now = performance.now();
-      const next = Math.min(blinkAt, !pointer ? Math.max(glanceNext, lastInput + 6000) : Infinity, glanceUntil > now ? glanceUntil : Infinity);
+      const next = Math.min(blinkAt, !pointer && !bench.get().look ? Math.max(glanceNext, lastInput + 6000) : Infinity, glanceUntil > now ? glanceUntil : Infinity);
       sleeper = window.setTimeout(kick, Math.max(16, next - now));
     };
 
@@ -356,6 +359,14 @@ export function HeroCharacter({ alt }: { alt: string }) {
     window.addEventListener("pointermove", onMove, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave);
     window.addEventListener("blur", onLeave);
+    let lastLook = bench.get().look;
+    const offBench = bench.subscribe((s) => {
+      if (s.look === lastLook) return;
+      lastLook = s.look;
+      lastInput = performance.now();
+      loadFrames();
+      kick();
+    });
     hero.addEventListener("pointerdown", onTouch, { passive: true });
     hero.addEventListener("pointermove", onTouch, { passive: true });
     hero.addEventListener("pointerup", onTouchEnd);
@@ -370,6 +381,7 @@ export function HeroCharacter({ alt }: { alt: string }) {
       window.clearTimeout(startTimer);
       ro.disconnect();
       io.disconnect();
+      offBench();
       window.removeEventListener("pointermove", onMove);
       document.documentElement.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("blur", onLeave);

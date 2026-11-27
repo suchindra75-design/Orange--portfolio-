@@ -958,3 +958,39 @@ html:active-view-transition-type(open-project)::view-transition-new(root) {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   THE BENCH (home hero, desktop with a mouse): see DESIGN.md v8 and components/home/Bench.tsx.
+   The bench replaces the "Stuff I made" grid on the home page (its rail lists every project). */
+html[data-bench] #worlds {
+  display: none;
+}
+.bench-ui {
+  opacity: 0;
+  visibility: hidden;
+}
+.bench-hits {
+  pointer-events: none;
+}
+.bench-hits[data-on] .bench-hit {
+  pointer-events: auto;
+}
+.bench-hit {
+  display: block;
+  cursor: pointer;
+  border-radius: 18px;
+}
+.bench-label {
+  opacity: 0;
+  transition: opacity 0.16s var(--ease-out-expo);
+}
+.bench-label[data-on] {
+  opacity: 1;
+}
+.bench-canvas {
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-out-expo);
+}
+.bench-canvas[data-shown] {
+  opacity: 1;
+}

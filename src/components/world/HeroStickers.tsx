@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 
@@ -35,6 +35,12 @@ type Spec = {
   rot: number; // radians
   tex: THREE.CanvasTexture;
 };
+
+/**
+ * When the stickers are drawn inside another canvas (the home bench, BenchCanvas), that canvas
+ * renders on its own clock: it hands down how to ask it for a frame.
+ */
+export const StickerInvalidate = createContext<(() => void) | null>(null);
 
 type Spring = { v: number; x: number };
 type Motion = { rx: Spring; ry: Spring; rz: Spring; lift: Spring; squash: Spring; hover: boolean };
@@ -196,7 +202,9 @@ const K = 170; // spring stiffness
 const C = 11; // damping (under-damped: a short wobble, then still)
 
 function Rig({ hero, specs, motions, canvasRect, live }: { hero: HTMLElement; specs: Spec[]; motions: Motion[]; canvasRect: RefObject<DOMRect | null>; live: RefObject<boolean> }) {
-  const invalidate = useThree((s) => s.invalidate);
+  const own = useThree((s) => s.invalidate);
+  const handed = useContext(StickerInvalidate);
+  const invalidate = handed ?? own;
   const pointer = useRef<{ x: number; y: number; in: boolean }>({ x: 0, y: 0, in: false });
   const lastScroll = useRef(0);
 
@@ -301,15 +309,9 @@ function detectWebGL() {
   }
 }
 
-export function HeroStickers({ hero }: { hero: RefObject<HTMLElement | null> }) {
-  const [supported] = useState(detectWebGL);
+/** The sticker faces, built from the live HTML stickers (and rebuilt if their size changes). */
+export function useStickerSpecs(hero: RefObject<HTMLElement | null>, supported: boolean) {
   const [specs, setSpecs] = useState<Spec[] | null>(null);
-  const [shown, setShown] = useState(false);
-  const canvasRect = useRef<DOMRect | null>(null);
-  const live = useRef(true);
-  const [frameloop, setFrameloop] = useState<"demand" | "never">("demand");
-
-  // Build the sticker faces from the live HTML (and again if their size changes with the viewport).
   useEffect(() => {
     const el = hero.current;
     if (!el || !supported) return;
@@ -338,6 +340,32 @@ export function HeroStickers({ hero }: { hero: RefObject<HTMLElement | null> }) 
     };
   }, [hero, supported]);
   useEffect(() => () => specs?.forEach((s) => s.tex.dispose()), [specs]);
+  return specs;
+}
+
+export const useStickerMotions = (specs: Spec[] | null) =>
+  useMemo(() => (specs ?? []).map(() => ({ rx: spring(), ry: spring(), rz: spring(), lift: spring(), squash: spring(), hover: false })), [specs]);
+
+/** The scene contents: camera rig, springs and the three stickers (usable inside any canvas). */
+export function StickerContent({ hero, specs, motions, canvasRect, live }: { hero: HTMLElement; specs: Spec[]; motions: Motion[]; canvasRect: RefObject<DOMRect | null>; live: RefObject<boolean> }) {
+  return (
+    <>
+      <PixelCamera />
+      <Rig hero={hero} specs={specs} motions={motions} canvasRect={canvasRect} live={live} />
+      {specs.map((s, i) => (
+        <Sticker key={`${i}-${s.w}x${s.h}`} spec={s} motion={motions[i]} canvasRect={canvasRect} />
+      ))}
+    </>
+  );
+}
+
+export function HeroStickers({ hero }: { hero: RefObject<HTMLElement | null> }) {
+  const [supported] = useState(detectWebGL);
+  const specs = useStickerSpecs(hero, supported);
+  const [shown, setShown] = useState(false);
+  const canvasRect = useRef<DOMRect | null>(null);
+  const live = useRef(true);
+  const [frameloop, setFrameloop] = useState<"demand" | "never">("demand");
 
   // Only while the hero is on screen.
   useEffect(() => {
@@ -352,16 +380,9 @@ export function HeroStickers({ hero }: { hero: RefObject<HTMLElement | null> }) 
   }, [hero]);
 
   // Hand over: once the 3D has drawn, the HTML stickers go transparent (they stay as text and hit areas).
-  useEffect(() => {
-    const el = hero.current;
-    if (!el || !shown) return;
-    el.dataset.stickers3d = "";
-    return () => {
-      delete el.dataset.stickers3d;
-    };
-  }, [hero, shown]);
+  useStickerHandover(hero, shown);
 
-  const motions = useMemo(() => (specs ?? []).map(() => ({ rx: spring(), ry: spring(), rz: spring(), lift: spring(), squash: spring(), hover: false })), [specs]);
+  const motions = useStickerMotions(specs);
 
   if (!supported || !specs || !hero.current) return null;
 
@@ -376,12 +397,20 @@ export function HeroStickers({ hero }: { hero: RefObject<HTMLElement | null> }) 
         style={{ pointerEvents: "none" }}
         onCreated={() => requestAnimationFrame(() => requestAnimationFrame(() => setShown(true)))}
       >
-        <PixelCamera />
-        <Rig hero={hero.current} specs={specs} motions={motions} canvasRect={canvasRect} live={live} />
-        {specs.map((s, i) => (
-          <Sticker key={`${i}-${s.w}x${s.h}`} spec={s} motion={motions[i]} canvasRect={canvasRect} />
-        ))}
+        <StickerContent hero={hero.current} specs={specs} motions={motions} canvasRect={canvasRect} live={live} />
       </Canvas>
     </div>
   );
+}
+
+/** Once the 3D stickers have drawn, the HTML ones go transparent (they stay as text and hit areas). */
+export function useStickerHandover(hero: RefObject<HTMLElement | null>, shown: boolean) {
+  useEffect(() => {
+    const el = hero.current;
+    if (!el || !shown) return;
+    el.dataset.stickers3d = "";
+    return () => {
+      delete el.dataset.stickers3d;
+    };
+  }, [hero, shown]);
 }

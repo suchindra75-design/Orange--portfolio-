@@ -1,4 +1,4 @@
-# DESIGN.md (v7): BOLD COLOUR, the contract for every page and every agent
+# DESIGN.md (v8): BOLD COLOUR + THE BENCH, the contract for every page and every agent
 
 **Identity:** loud, warm and hand-made. An orange page, his name enormous in cream, his own cartoon character on a photo-sticker card turning to look at you, and the work as chunky cards you want to pick up.
 
@@ -38,6 +38,16 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 - The video covers the full circle except a thin gap between up and upper-left; the player uses the nearest real frame there.
 - Alt text says it is a cartoon, never a photograph.
 
+**The bench (v8, owner's decision, 27 Nov 2026):** the home hero opens into a 3D workbench holding every project. Specs and research are kept privately in `docs/v2/`.
+- **Who gets it:** desktop with a mouse, a screen at least 1024 × 600, motion allowed, no Save-Data, WebGL (`useBenchMode` in `home/Bench.tsx`). Everyone else keeps the v7 page exactly: hero, then the "Stuff I made" grid. Phones, tablets and reduced motion never download three.js on the home page.
+- **The crane:** the hero pins for 130% of a screen. Scrolling cranes the camera from the hero's eye line up and over the bench, 1:1 with scroll (`MOTION.scrub`), never hijacked. The name and the stickers leave, the objects pop onto the table (back row first), and his card shrinks and stands on the bench's front edge (projected from 3D every frame). "See the work" plays the same move.
+- **Objects:** one per project (`bench/objects.ts`, placed by `content/bench.ts`). They are illustrations built in code, never models of real hardware. Each has one accent from its own world palette, plus cream and ink. Screens show only real things: the project's real screenshot, or INFINOS Telemetry's recorded readings.
+- **The material:** printed stickers, made solid (`bench/toon.ts`). Three flat shading steps (lit, 82%, 35% toward ink), an ink inverted-hull outline, and a hard ink offset shadow on the table. **Never** gloss, environment maps, bloom, glow, glass, particles or gradients on objects.
+- **Pick it up:** pointing at an object (or focusing its rail link) lifts it with a slap-and-settle spring and deepens its shadow. A DOM label appears (above, or below when there's no room), and **he turns to look at it** using real frames only (`bench.look` → `HeroCharacter`). Clicking flies the camera to it (640 ms), then the usual open-project View Transition plays. Modifier clicks open normally.
+- **Ask the bench:** chips filter honestly (`CHIPS`: every membership follows from the project's own data). Objects that are filtered out step back and dim; the rail mutes them; a live region announces the result. "Show me in 60 s" tours the main projects (6.5 s each, one line each, with an Open button). Any wheel, click, Escape or Tab stops it.
+- **The DOM owns words and clicks:** the index rail is the real list of links (keyboard and screen readers use only it). The per-object hit areas are mouse-only and `aria-hidden`, sized every frame to the object's box on screen. No text lives in the canvas.
+- **One clock:** the bench canvas is `frameloop="never"` and draws inside GSAP's ticker, after Lenis and ScrollTrigger, so the crane, the card and the page agree on every frame. It draws only when asked and never while the hero is off screen. The three hero stickers are drawn in the same canvas, on top, with their own pixel camera (one WebGL context).
+
 **The owner's photograph:**
 - **Hero (until 26 Nov 2026):** `/me/hero.png` with `.sticker-cut`, kept in the repo in case he wants it back.
 - **Footer:** an ink line-engraving print, from `/me/footer-ink.png`, with `.sticker-cut`.
@@ -47,7 +57,7 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 
 | Route | Source |
 |---|---|
-| `/` | `app/page.tsx`: Hero (`home/Hero.tsx`), Worlds ("Stuff I made", `project/CardGrid.tsx`), Intro, HowIBuild, Invitation |
+| `/` | `app/page.tsx`: Hero (`home/Hero.tsx`; on desktop it cranes into the bench, `home/Bench.tsx` + `bench/*`), Worlds ("Stuff I made", `project/CardGrid.tsx`; hidden where the bench shows), Intro, HowIBuild, Invitation |
 | `/projects` | `project/Collection.tsx` |
 | `/projects/[slug]` | `project/ProjectPage.tsx` (the one template) plus the project's **world** (`components/worlds/<slug>/`) |
 | `/about`, `/contact` | `app/about/page.tsx`, `app/contact/page.tsx` |
@@ -99,7 +109,8 @@ The project worlds keep their own tints inside their pages (`project.world`); on
 - **Rendering:** nothing animates off screen. Gate every rAF and canvas loop with an IntersectionObserver.
 - **Canvas:** 2D canvases cap DPR at 1.5 and redraw only what changes. The hero character draws only when its frame changes and sleeps between blinks.
 - **Hero character frames:** the centre frame loads with the page (about 8 KB) and the two blink frames follow it. The 64 direction frames (about 680 KB) load all at once with a mouse, on the first mouse move or 0.9 s after the centre frame, and decode off the main thread; until a direction arrives he turns to the nearest one that has. Phones fetch them on the first touch of the hero; reduced motion fetches nothing but the centre frame.
-- **WebGL:** only through a `Stage` (`world/Stage.tsx` via `world/stages.tsx`), or on the home hero through `world/HeroStickers.tsx`. Both render on demand, stop off screen and dispose on unmount. At most one per page.
+- **WebGL:** only through a `Stage` (`world/Stage.tsx` via `world/stages.tsx`), or on the home hero through `bench/BenchCanvas.tsx` (the bench + the stickers, desktop) or `world/HeroStickers.tsx` (the stickers alone, tablets with a mouse). All render on demand, stop off screen and dispose on unmount. At most one per page.
+- **The bench's budget:** ≤ 1% of home scroll frames over 33 ms (measured 27 Nov 2026: 1 of ~608, baseline 2 of ~633); a steady 60 fps while hovering the bench at DPR 2; the home page ≤ 1.6 MB on desktop before interaction (measured 1.47 MB). Objects merge their parts by colour (about 4 draw calls each). Screenshots come through `/_next/image` at 640 px. three.js loads after the intro on idle, or on the first scroll.
 - **No visible load:** a Stage shows its poster (`world/Poster.tsx`, a still render of the scene at its first camera position, desktop and phone WebP in `public/work/<slug>/`) while three.js loads, and the canvas fades in over it. If a scene changes, re-render its posters.
 - **Hero stickers 3D** load only after the intro, on idle, and only with a mouse, a screen ≥ 768px wide, motion allowed and no Save-Data. Phones never download three.js on the home page. That canvas covers the whole hero, so it is capped at DPR 1.5 like every canvas (at 2× it cost scroll frames on the target GPU); the sticker faces are textures painted at 2–4×, so their text stays sharp.
 - **Big SVG drawings that move on scroll** must move as composited layers, never by changing what's inside one SVG (the footer crowd draws each person as its own small SVG for this reason). Write each mover's own `transform` from JS; never animate a CSS variable on a big parent (it restyles every shape below it on every frame). Promote layers (`will-change`) only while the drawing is on screen (`.crowd[data-live]`), and use 2D transforms so nothing becomes a layer by accident.
