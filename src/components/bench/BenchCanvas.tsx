@@ -41,6 +41,18 @@ const smooth = (a: number, b: number, v: number) => {
   return t * t * (3 - 2 * t);
 };
 
+/**
+ * Development only: `?benchStill=overview` or `?benchStill=<slug>` renders a clean still (no
+ * page, transparent background) for the posters and the phone tray's object pictures
+ * (tools/bench-stills, private). Production builds never read it.
+ */
+const STILL: string | null =
+  process.env.NODE_ENV !== "production" && typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("benchStill") : null;
+const STILL_SLUG = STILL && STILL !== "overview" ? (STILL as ProjectSlug) : null;
+
+/** The cursor, -1…1 across the hero, for the overview's small parallax. */
+const pointerN = { x: 0, y: 0 };
+
 /** Camera: the start (low, the bench a strip under his card) and the overview (55° over the bench). */
 const CAM = {
   from: { pos: new THREE.Vector3(0, 0.9, 16), at: new THREE.Vector3(0, 4.3, 0) },
@@ -148,6 +160,11 @@ function BenchObject({ slug, onLive }: { slug: ProjectSlug; onLive: (o: Live) =>
 }
 
 function Table() {
+  if (STILL_SLUG) return null;
+  return <TableMeshes />;
+}
+
+function TableMeshes() {
   const top = useMemo(() => matMaterial(), []);
   const side = useMemo(() => toon(CREAM, { value: 0 }), []);
   const slab = useMemo(() => new THREE.BoxGeometry(12.6, 0.36, 7.6), []);
@@ -209,13 +226,13 @@ const at = new THREE.Vector3();
 const fpos = new THREE.Vector3();
 const fat = new THREE.Vector3();
 type CardPoint = { x: number; y: number; ok: boolean };
-type Focus = { v: number; slug: ProjectSlug | null };
+type Focus = { v: number; slug: ProjectSlug | null; par: { x: number; y: number; vx: number; vy: number } };
 
 /** One frame of the bench: camera (crane, filter, focus), every object, and their DOM boxes. */
 function stepRig(camera: THREE.PerspectiveCamera, w: number, h: number, objects: Live[], targets: BenchTargets, card: CardPoint, f: Focus, delta: number) {
   const dt = Math.min(delta, 1 / 30);
   const st = bench.get();
-  const p = st.crane;
+  const p = STILL ? 1 : st.crane;
   const e = ease(p);
   let moving = false;
 
@@ -224,6 +241,19 @@ function stepRig(camera: THREE.PerspectiveCamera, w: number, h: number, objects:
   pos.lerpVectors(CAM.from.pos, CAM.to.pos, e);
   at.lerpVectors(CAM.from.at, CAM.to.at, e);
   pos.sub(at).multiplyScalar(THREE.MathUtils.lerp(1, back, e)).add(at);
+  // A crane, not a lift: the camera swings out to the side on its way up, then settles square.
+  pos.x += Math.sin(Math.PI * e) * 2.4;
+
+  // At the overview the camera leans a little toward the cursor (depth you can feel, never a drift).
+  const par = f.par;
+  const w8 = smooth(0.85, 1, p) * (st.focus || st.tour || STILL ? 0 : 1);
+  par.vx += (-60 * (par.x - pointerN.x * w8) - 14 * par.vx) * dt;
+  par.vy += (-60 * (par.y - pointerN.y * w8) - 14 * par.vy) * dt;
+  par.x += par.vx * dt;
+  par.y += par.vy * dt;
+  if (Math.abs(par.vx) + Math.abs(par.vy) > 1e-4 || Math.abs(par.x - pointerN.x * w8) + Math.abs(par.y - pointerN.y * w8) > 1e-4) moving = true;
+  pos.x += par.x * 0.7;
+  pos.y -= par.y * 0.45;
 
   // A filter re-frames gently toward what stayed forward.
   if (st.filter && st.filter.slugs.length) {
@@ -253,6 +283,15 @@ function stepRig(camera: THREE.PerspectiveCamera, w: number, h: number, objects:
     pos.lerp(fpos, fe);
     at.lerp(fat, fe);
   }
+  if (STILL_SLUG) {
+    // A still of one object: three-quarter view from the front right, framed to its size.
+    const o = BENCH[STILL_SLUG];
+    const spec = objects.find((x) => x.slug === STILL_SLUG)!;
+    const size = spec.box.getSize(v);
+    const r = Math.max(size.x, size.y, size.z);
+    at.set(o.x, size.y * 0.45, o.z);
+    pos.set(o.x + r * 0.9, r * 1.55 + size.y * 0.4, o.z + r * 2.2);
+  }
   camera.position.copy(pos);
   camera.lookAt(at);
   camera.updateMatrixWorld();
@@ -275,7 +314,7 @@ function stepRig(camera: THREE.PerspectiveCamera, w: number, h: number, objects:
     o.lift.position.y = s.lift + drop * drop * 1.1;
     o.lift.scale.setScalar(1 - drop * 0.45);
     o.group.position.set(place.x, 0, place.z - s.back * 0.6);
-    o.group.visible = drop < 0.999;
+    o.group.visible = drop < 0.999 && (!STILL_SLUG || o.slug === STILL_SLUG);
     // The shadow stays on the table; it spreads as the object rises (a deeper hard shadow).
     o.shadow.position.set(0.1 + s.lift * 0.3, 0.004, 0.12 + s.lift * 0.34);
     o.shadow.scale.setScalar((1 - drop) * (0.92 + s.lift * 0.06));
@@ -308,7 +347,7 @@ function stepRig(camera: THREE.PerspectiveCamera, w: number, h: number, objects:
 function Rig({ targets, objects, cardRef }: { targets: BenchTargets; objects: Live[]; cardRef: RefObject<CardPoint> }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
-  const focusRef = useRef<Focus>({ v: 0, slug: null });
+  const focusRef = useRef<Focus>({ v: 0, slug: null, par: { x: 0, y: 0, vx: 0, vy: 0 } });
   useFrame((_, delta) => stepRig(camera, size.width, size.height, objects, targets, cardRef.current, focusRef.current, delta));
   return null;
 }
@@ -337,8 +376,8 @@ type Rest = { cx: number; bottom: number };
 
 /** Draws the bench, then the stickers on top with their own camera, and stands his card on the bench. */
 function drawLayers(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, stickerScene: THREE.Scene, stickerCam: THREE.Camera, targets: BenchTargets, card: CardPoint, rest: Rest | null) {
-  const p = bench.get().crane;
-  stickerScene.visible = p < 0.32;
+  const p = STILL ? 1 : bench.get().crane;
+  stickerScene.visible = !STILL && p < 0.32;
   gl.autoClear = false;
   gl.clear();
   gl.render(scene, camera);
@@ -382,7 +421,7 @@ function Layers({ stickerScene, stickerCam, cardRef, targets, restRef }: { stick
   return null;
 }
 
-export default function BenchCanvas({ hero, targets, onReady }: { hero: RefObject<HTMLElement | null>; targets: BenchTargets; onReady?: () => void }) {
+export default function BenchCanvas({ hero, targets, onReady, onLost }: { hero: RefObject<HTMLElement | null>; targets: BenchTargets; onReady?: () => void; onLost?: () => void }) {
   const state = useRef<RootState | null>(null);
   const live = useRef(true);
   const dirty = useRef(true);
@@ -406,7 +445,13 @@ export default function BenchCanvas({ hero, targets, onReady }: { hero: RefObjec
       advance(performance.now(), false, state.current);
     };
     gsap.ticker.add(tick);
-    const onMove = () => ask();
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") {
+        pointerN.x = (e.clientX / window.innerWidth) * 2 - 1;
+        pointerN.y = (e.clientY / window.innerHeight) * 2 - 1;
+      }
+      ask();
+    };
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => {
       gsap.ticker.remove(tick);
@@ -451,6 +496,12 @@ export default function BenchCanvas({ hero, targets, onReady }: { hero: RefObjec
         onCreated={(s) => {
           state.current = s;
           s.gl.setClearColor(0x000000, 0);
+          // If the GPU drops the context, the bench steps aside for its poster (Bench.tsx).
+          s.gl.domElement.addEventListener("webglcontextlost", (ev) => {
+            ev.preventDefault();
+            onLost?.();
+          });
+          if (STILL) document.documentElement.dataset.benchStill = STILL;
           dirty.current = true;
           requestAnimationFrame(() =>
             requestAnimationFrame(() => {

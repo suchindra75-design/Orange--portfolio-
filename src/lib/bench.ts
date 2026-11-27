@@ -54,3 +54,9 @@ export const bench = {
   },
   requestRender: () => renderer?.(),
 };
+
+/**
+ * The hero's intro timeline (Hero.tsx). The crane finishes it the moment it starts, so the two
+ * never fight over the same stickers and line if the visitor scrolls during the intro.
+ */
+export const heroIntro: { tl: { progress(): number; progress(v: number): unknown } | null } = { tl: null };

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { gsap, MOTION, ScrollTrigger, useGSAP } from "@/lib/gsap";
-import { bench } from "@/lib/bench";
+import { bench, heroIntro } from "@/lib/bench";
 import { mainProjects, projects, type ProjectSlug } from "@/content/projects";
 import { CHIPS, chipSlugs } from "@/content/bench";
 import { PageLink, ProjectLink } from "@/components/chrome/Links";
@@ -98,6 +98,9 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
   const [filter, setFilter] = useState<string | null>(null);
   const [tour, setTour] = useState<{ i: number } | null>(null);
   const [ready, setReady] = useState(false);
+  const [lost, setLost] = useState(false);
+  const [poster, setPoster] = useState(false);
+  const posterRef = useRef<HTMLImageElement>(null);
   const bypass = useRef(false);
 
   // Hand the canvas its DOM targets.
@@ -110,8 +113,12 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
         setHover(s.hover);
         setFilter(s.filter?.id ?? null);
         hitsRef.current?.toggleAttribute("data-on", s.crane > 0.82 && !s.tour);
+        hero.current?.toggleAttribute("data-flying", !!s.focus && !s.tour);
+        // No visible load: until the 3D bench has drawn, its still stands in, arriving as the crane does.
+        if (s.crane > 0.02) setPoster(true);
+        if (posterRef.current) posterRef.current.style.opacity = String(Math.min(1, Math.max(0, (s.crane - 0.3) / 0.55)));
       }),
-    [],
+    [hero],
   );
 
   // The crane: the hero pins and the camera rises over the bench as you scroll (1:1, never hijacked).
@@ -124,7 +131,11 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
       const tl = gsap.timeline({
         scrollTrigger: { id: "crane", trigger: root, start: "top top", end: "+=130%", pin: true, scrub: MOTION.scrub, anticipatePin: 1 },
       });
-      tl.to(proxy, { p: 1, duration: 1, ease: "none", onUpdate: () => bench.set({ crane: proxy.p }) }, 0)
+      const onCrane = () => {
+        if (proxy.p > 0 && heroIntro.tl && heroIntro.tl.progress() < 1) heroIntro.tl.progress(1);
+        bench.set({ crane: proxy.p });
+      };
+      tl.to(proxy, { p: 1, duration: 1, ease: "none", onUpdate: onCrane }, 0)
         .fromTo(root.querySelector("h1"), { yPercent: 0, autoAlpha: 1 }, { yPercent: -45, autoAlpha: 0, duration: 0.42, ease: "power1.in", ...from }, 0.04)
         .fromTo(root.querySelectorAll("[data-sticker]"), { yPercent: 0, autoAlpha: 1 }, { yPercent: -160, autoAlpha: 0, duration: 0.3, ease: "power1.in", ...from }, 0)
         .fromTo(root.querySelectorAll("[data-lead], [data-see-work]"), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.14, ...from }, 0)
@@ -212,7 +223,12 @@ export function Bench({ hero, card, fig }: { hero: RefObject<HTMLElement | null>
 
   return (
     <>
-      {load && <BenchCanvas hero={hero} targets={targets} onReady={() => setReady(true)} />}
+      {poster && (!ready || lost) && (
+        // A still render of the bench at the end of the crane (public/bench/overview.webp): decorative.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img ref={posterRef} src="/bench/overview.webp" alt="" aria-hidden="true" decoding="async" className="bench-poster pointer-events-none absolute inset-0 z-[2] h-full w-full object-cover" style={{ opacity: Math.min(1, Math.max(0, (bench.get().crane - 0.3) / 0.55)) }} />
+      )}
+      {load && !lost && <BenchCanvas hero={hero} targets={targets} onReady={() => setReady(true)} onLost={() => setLost(true)} />}
 
       {/* Hit areas: one per object, placed by the canvas every frame (mouse only; the rail is the keyboard path). */}
       <div ref={hitsRef} className="bench-hits absolute inset-0 z-[5]" aria-hidden="true" data-ready={ready ? "" : undefined}>

@@ -8,6 +8,7 @@ import { scrollToTarget } from "@/lib/scroll";
 import { site } from "@/content/site";
 import { HeroCharacter } from "./HeroCharacter";
 import { Bench, craneEnd, useBenchMode } from "./Bench";
+import { heroIntro } from "@/lib/bench";
 
 const NAME = "SUCHINDRA";
 
@@ -78,6 +79,10 @@ export function Hero() {
         .from(fig.current, { yPercent: 18, scale: 0.92, autoAlpha: 0, duration: 0.8, ease: "back.out(1.3)" }, 0.35)
         .from("[data-sticker]", { scale: 0.4, autoAlpha: 0, duration: 0.55, stagger: 0.09 }, 0.75)
         .from("[data-lead]", { y: 24, autoAlpha: 0, duration: 0.6, ease: "power3.out" }, 0.8);
+      heroIntro.tl = tl;
+      return () => {
+        heroIntro.tl = null;
+      };
     },
     { scope: root },
   );

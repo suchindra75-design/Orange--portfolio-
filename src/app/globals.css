@@ -994,3 +994,37 @@ html[data-bench] #worlds {
 .bench-canvas[data-shown] {
   opacity: 1;
 }
+/* Development tool only (?benchStill=…, see BenchCanvas): everything but the bench canvas hides,
+   on a transparent page, so its stills can be captured. Production never sets the attribute. */
+html[data-bench-still] body * {
+  visibility: hidden !important;
+}
+html[data-bench-still] .bench-canvas,
+html[data-bench-still] .bench-canvas * {
+  visibility: visible !important;
+}
+html[data-bench-still],
+html[data-bench-still] body,
+html[data-bench-still] #hero {
+  background: transparent !important;
+}
+/* Opening a project from the bench: the rail and chips step aside while the camera flies in. */
+#hero[data-flying] [data-bench-ui] {
+  opacity: 0 !important;
+  transition: opacity 0.3s var(--ease-out-expo);
+}
+/* The tray (phones): a card lifts as you press it, like picking it off the bench. */
+.tray-card {
+  transition: translate 0.28s var(--ease-out-expo), box-shadow 0.28s var(--ease-out-expo);
+}
+.tray-card:active {
+  translate: 0 -6px;
+  box-shadow: 0 18px 0 var(--color-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tray-card,
+  .tray-card:active {
+    transition: none;
+    translate: none;
+  }
+}
